@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.74.3" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark"><title>Semeion&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.b18f2982ffabb9bf1c023028ecd7487c21258c5bc6821ce655ba275a5c63121a979437a47dd580a96c2b448e5eee0f78.css" integrity="sha384-sY8pgv&#43;rub8cAjAo7NdIfCEljFvGghzmVbonWlxjEhqXlDekfdWAqWwrRI5e7g94"><meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Semeion" /><body><section id="header">
+    <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><span class="site name">gliderkite.io</span></a></span>
+        <span class="header right-side"></span></div></section><section id="content"><div class="article-container"><section class="article header">
+    <h1 class="article title">Semeion</h1><p class="article date">2020-09-26</p></section><article class="article markdown-body"><h2 id="overview">Overview</h2>
+<p>This is an overview of a project I enjoyed working on over the past few
+months, which is now in a state that I consider good enough to be used for a toy
+kind of project.</p>
+<p><a href="https://github.com/gliderkite/semeion"target="_blank">semeion</a> is a small Rust library that
+allows you to write simulations that run in a 2D
+(<a href="https://en.wikipedia.org/wiki/Torus"target="_blank">torus</a>) environment, well suited for
+<a href="https://en.wikipedia.org/wiki/Cellular_automaton"target="_blank">cellular automata</a> simulations
+or <a href="https://en.wikipedia.org/wiki/Zero-player_game"target="_blank">zero-player games</a>.</p>
+<p>The purpose of this library is to try to generalize many of the common concepts
+and components that you may find yourself writing when working on these type
+of projects, allowing you to focus especially on the logic of your program.</p>
+<p>As such, <code>semeion</code> defines two mayor components: the <code>Environment</code> data structure
+(the engine) and the <code>Entity</code> trait.</p>
+<h2 id="the-environment">The Environment</h2>
+<p>The <code>Environment</code> is a data structure that models a 2D unbounded plane of any
+user-specified integer dimension (where its rectangle bounds wrap onto themselves).</p>
+<p>The geometry is then divided into a set of square <em>tiles</em>, each of the same size,
+that represents the possible discrete locations where all the entities are
+located (some entities may transcend the concept of location and not be bound
+to a specific tile).</p>
+<p>Besides representing the world where all the entities exist, the <code>Environment</code>
+is also the engine that gives them life. Your simulation will proceed from
+generation zero until your logic determines when the simulation can be considered
+over. At each iteration, all the entities will be called automatically to perform
+the task you assigned them and will be automatically removed from the environment
+according to their lifetime. Only after all the entities finish their task
+(or an error is raised), the <code>Environment</code> can proceed to the next generation†.</p>
+<p>The idea is to initialize the <code>Environment</code> with a set of entities that
+represent the initial population, to then let the engine move forward to the
+next generation until the simulation is over:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> semeion::{Environment, Error, Size};
+
+<span style="color:#e6db74">/// The width the environment.
+</span><span style="color:#e6db74"></span><span style="color:#66d9ef">const</span> WIDTH: <span style="color:#66d9ef">f32</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">800.0</span>;
+
+<span style="color:#e6db74">/// The height of the environment.
+</span><span style="color:#e6db74"></span><span style="color:#66d9ef">const</span> HEIGHT: <span style="color:#66d9ef">f32</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">800.0</span>;
+
+<span style="color:#e6db74">/// The length of each environment grid tile.
+</span><span style="color:#e6db74"></span><span style="color:#66d9ef">const</span> SIDE: <span style="color:#66d9ef">f32</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">10.0</span>;
+
+<span style="color:#e6db74">/// The maximum number of generations before terminating the simulation
+</span><span style="color:#e6db74">/// due to timeout.
+</span><span style="color:#e6db74"></span><span style="color:#66d9ef">const</span> MAX_GENERATIONS_COUNT: <span style="color:#66d9ef">u64</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">10_000</span>;
+
+<span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">main</span>() -&gt; Result<span style="color:#f92672">&lt;</span>(), Error<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">let</span> dimension <span style="color:#f92672">=</span> env_size().to_dimension(SIDE);
+    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> env <span style="color:#f92672">=</span> Environment::new(dimension);
+    env.insert(Box::new(Ant::new(rand::random(), dimension.center())));
+
+    <span style="color:#66d9ef">while</span> <span style="color:#f92672">!</span>is_simulation_over() {
+        <span style="color:#66d9ef">if</span> env.nextgen()<span style="color:#f92672">?</span> <span style="color:#f92672">&gt;</span> MAX_GENERATIONS_COUNT {
+            panic<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Timeout!&#34;</span>);
+        }
+    }
+
+    println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Simulation over after {} generations&#34;</span>, env.generation());
+    Ok(())
+}
+
+<span style="color:#e6db74">/// Gets the size of the environment.
+</span><span style="color:#e6db74"></span><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">env_size</span>() -&gt; <span style="color:#a6e22e">Size</span> {
+    Size {
+        width: <span style="color:#a6e22e">WIDTH</span>,
+        height: <span style="color:#a6e22e">HEIGHT</span>,
+    }
+}
+
+<span style="color:#e6db74">/// Returns true only if the simulation is over.
+</span><span style="color:#e6db74"></span><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">is_simulation_over</span>() -&gt; <span style="color:#66d9ef">bool</span> {
+    <span style="color:#66d9ef">false</span>
+}
+</code></pre></div><p>However, the above code cannot compile until we introduce the second main component
+of the <code>semeion</code> library: the <code>Entity</code> trait.</p>
+<p>† This concept is not unique to <code>semeion</code>, in fact you can find it in a lot in
+optimization problems solved with
+<a href="https://en.wikipedia.org/wiki/Genetic_algorithm#Optimization_problems"target="_blank">genetic algorithms</a>.</p>
+<h2 id="the-entity-trait">The Entity trait</h2>
+<p>The <code>Entity</code> is a trait that can be implemented by the user of this library to
+define the behavior (and optionally the shape) of each entity <em>kind</em>.</p>
+<p>Each entity must in fact have an unique ID (unique for all the entities that
+currently exist in the environment) and a kind, which is user defined and allows
+to group entities into different sets.</p>
+<p>Besides these mandatory fields, a user <code>Entity</code> can define several optional
+attributes by simply implementing the <code>Entity</code> methods. In particular, any single
+entity may or may not have the following:</p>
+<ul>
+<li><code>Location</code>: the location within the environment that identifies the tile where
+the entity is positioned.</li>
+<li><code>Scope</code>: the radius of influence, i.e. the portion of the environment that an
+entity can see and interact with. The bigger the scope, the bigger this portion
+of the environment (<code>Neighborhood</code>) is.</li>
+<li><code>Lifespan</code>: the remaining lifespan of the entity.</li>
+<li><code>State</code>: a user defined state that can represent additional metadata.</li>
+</ul>
+<p>Moreover, any entity can define its behavior by implementing the following
+methods:</p>
+<ul>
+<li><code>observe(Neighborhood)</code>: allows the entity to observe and record its surrounding
+environment (according to its <em>scope</em> of influence).</li>
+<li><code>react(Neighborhood)</code>: allows the entity to take an action according to its
+surrounding environment.</li>
+<li><code>offspring() -&gt; Offspring</code>: allows the entity to release its offspring into
+the environment at each generation.</li>
+<li><code>draw(Context)</code>: allows drawing the entity using the user-provided graphics
+context type.</li>
+</ul>
+<p>Now that we have most of the <code>Entity</code> information, we can start by defining a new
+entity:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> semeion::{entity, Entity};
+
+<span style="color:#e6db74">/// The simulation will not draw any graphics for now.
+</span><span style="color:#e6db74"></span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">GraphicsContext</span> <span style="color:#f92672">=</span> ();
+
+<span style="color:#75715e">#[derive(PartialEq, PartialOrd, Eq, Ord)]</span>
+<span style="color:#66d9ef">enum</span> <span style="color:#a6e22e">EntityKind</span> {
+    Ant,
+}
+
+<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Ant</span> {
+    id: <span style="color:#a6e22e">entity</span>::Id,
+    location: <span style="color:#a6e22e">Location</span>,
+}
+
+<span style="color:#66d9ef">impl</span> Ant {
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">new</span>(id: <span style="color:#a6e22e">entity</span>::Id, location: <span style="color:#a6e22e">impl</span> Into<span style="color:#f92672">&lt;</span>Location<span style="color:#f92672">&gt;</span>) -&gt; <span style="color:#a6e22e">Self</span> {
+        Self {
+            id,
+            location: <span style="color:#a6e22e">location</span>.into(),
+        }
+    }
+}
+
+<span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> Entity<span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> <span style="color:#66d9ef">for</span> Ant {
+    <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Kind</span> <span style="color:#f92672">=</span> EntityKind;
+    <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Context</span> <span style="color:#f92672">=</span> GraphicsContext;
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">id</span>(<span style="color:#f92672">&amp;</span>self) -&gt; <span style="color:#a6e22e">entity</span>::Id {
+        self.id
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">kind</span>(<span style="color:#f92672">&amp;</span>self) -&gt; <span style="color:#a6e22e">Self</span>::Kind {
+        EntityKind::Ant
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">location</span>(<span style="color:#f92672">&amp;</span>self) -&gt; Option<span style="color:#f92672">&lt;</span>Location<span style="color:#f92672">&gt;</span> {
+        Some(self.location)
+    }
+}
+</code></pre></div><p>And now we can initialize the environment with our entity:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> env <span style="color:#f92672">=</span> Environment::new(dimensions);
+env.insert(Box::new(Ant::new(rand::random(), dimension.center())));
+</code></pre></div><p>The only thing to point out for now is the presence of that lifetime <code>'a</code>, which
+needs to be specified when implementing the <code>Entity</code> trait, since it will allow
+the propagation of the lifetime bound to the <code>Offspring</code> of the Entity without
+requiring a <code>'static</code> lifetime. Please note that this lifetime bound does not
+apply to mutable references, since they cannot be copied without violating
+uniqueness (aliasing).</p>
+<h2 id="defining-the-behavior-of-entities">Defining the behavior of entities</h2>
+<p>At this point, we are finally able to focus on our entities logic and to do so
+we can define their behavior by implementing some of the remaining <code>Entity</code>
+methods according to our needs.</p>
+<p>As an example, <a href="https://en.wikipedia.org/wiki/Langton%27s_ant"target="_blank">Langton&rsquo;s ant</a>
+lends itself very well, because the number of entities involved is low and the
+rules that define their behaviors are simple. If you want to have a look at a
+complete example that uses <code>semeion</code> to implement Langton&rsquo;s ant, please have
+a look at the <a href="https://github.com/gliderkite/semeion"target="_blank">semeion repository examples</a>.</p>
+<p>As a reminder for this example, Langton&rsquo;s ant moves according to the rules below:</p>
+<ul>
+<li>At a white square, turn 90° clockwise, flip the color of the square, move
+forward one unit.</li>
+<li>At a black square, turn 90° counter-clockwise, flip the color of the square,
+move forward one unit.</li>
+</ul>
+<p>We then need two different entities: the <code>Ant</code> (which we already partially defined),
+and the <code>Cell</code>, which can be defined similarly to the <code>Ant</code>, and in our case will
+encode the black square as the presence of a <code>Cell</code> in the tile, and the white
+square will be instead encoded by its absence (where <code>Cell</code>s are created by
+the <code>Ant</code> by releasing its <code>Offspring</code> into the environment, and can be removed
+by the <code>Ant</code> according to the simulation rules):</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> semeion::{entity, Entity, Lifespan, Location};
+
+<span style="color:#75715e">#[derive(PartialEq, PartialOrd, Eq, Ord)]</span>
+<span style="color:#66d9ef">enum</span> <span style="color:#a6e22e">EntityKind</span> {
+    Ant,
+    Cell,
+}
+
+<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Cell</span> {
+    id: <span style="color:#a6e22e">entity</span>::Id,
+    location: <span style="color:#a6e22e">Location</span>,
+    lifespan: <span style="color:#a6e22e">Lifespan</span>,
+}
+
+<span style="color:#66d9ef">impl</span> Cell {
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">new</span>(id: <span style="color:#a6e22e">entity</span>::Id, location: <span style="color:#a6e22e">impl</span> Into<span style="color:#f92672">&lt;</span>Location<span style="color:#f92672">&gt;</span>) -&gt; <span style="color:#a6e22e">Self</span> {
+        Self {
+            id,
+            location: <span style="color:#a6e22e">location</span>.into(),
+            <span style="color:#75715e">// the lifespan of a cell is immortal (black square), until
+</span><span style="color:#75715e"></span>            <span style="color:#75715e">// killed by the Ant (white square)
+</span><span style="color:#75715e"></span>            lifespan: <span style="color:#a6e22e">Lifespan</span>::Immortal,
+        }
+    }
+}
+
+<span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> Entity<span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> <span style="color:#66d9ef">for</span> Cell {
+    <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Kind</span> <span style="color:#f92672">=</span> EntityKind;
+    <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Context</span> <span style="color:#f92672">=</span> GraphicsContext;
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">id</span>(<span style="color:#f92672">&amp;</span>self) -&gt; <span style="color:#a6e22e">entity</span>::Id {
+        self.id
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">kind</span>(<span style="color:#f92672">&amp;</span>self) -&gt; <span style="color:#a6e22e">Self</span>::Kind {
+        EntityKind::Cell
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">location</span>(<span style="color:#f92672">&amp;</span>self) -&gt; Option<span style="color:#f92672">&lt;</span>Location<span style="color:#f92672">&gt;</span> {
+        Some(self.location)
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">lifespan</span>(<span style="color:#f92672">&amp;</span>self) -&gt; Option<span style="color:#f92672">&lt;</span>Lifespan<span style="color:#f92672">&gt;</span> {
+        Some(self.lifespan)
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">lifespan_mut</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> self) -&gt; Option<span style="color:#f92672">&lt;&amp;</span><span style="color:#66d9ef">mut</span> Lifespan<span style="color:#f92672">&gt;</span> {
+        <span style="color:#75715e">// the lifespan of the Cell can be affected by the Ant behavior
+</span><span style="color:#75715e"></span>        Some(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> self.lifespan)
+    }
+}
+</code></pre></div><p>Now that we have defined the <code>Cell</code> entity, we can proceed by implementing the
+<code>Ant</code> behavior:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> semeion::{entity, Entity, Lifespan, Location, Neighborhood, Offspring, Scope};
+
+<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Ant</span><span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> {
+    id: <span style="color:#a6e22e">entity</span>::Id,
+    location: <span style="color:#a6e22e">Location</span>,
+    <span style="color:#75715e">// the Ant offspring can contain a new Black cell
+</span><span style="color:#75715e"></span>    offspring: <span style="color:#a6e22e">Offspring</span><span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span>, EntityKind, GraphicsContext<span style="color:#f92672">&gt;</span>,
+}
+
+<span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> Ant<span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">new</span>(id: <span style="color:#a6e22e">entity</span>::Id, location: <span style="color:#a6e22e">impl</span> Into<span style="color:#f92672">&lt;</span>Location<span style="color:#f92672">&gt;</span>) -&gt; <span style="color:#a6e22e">Self</span> {
+        Self {
+            id,
+            location: <span style="color:#a6e22e">location</span>.into(),
+            offspring: <span style="color:#a6e22e">Offspring</span>::default(),
+        }
+    }
+}
+
+<span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> Entity<span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> <span style="color:#66d9ef">for</span> Ant<span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span><span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">lifespan</span>(<span style="color:#f92672">&amp;</span>self) -&gt; Option<span style="color:#f92672">&lt;</span>Lifespan<span style="color:#f92672">&gt;</span> {
+        <span style="color:#75715e">// The lifespan of the Ant is infinite.
+</span><span style="color:#75715e"></span>        Some(Lifespan::Immortal)
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">scope</span>(<span style="color:#f92672">&amp;</span>self) -&gt; Option<span style="color:#f92672">&lt;</span>Scope<span style="color:#f92672">&gt;</span> {
+        <span style="color:#75715e">// The Ant can only see the tile it&#39;s currently in, it has no
+</span><span style="color:#75715e"></span>        <span style="color:#75715e">// scope beyond it.
+</span><span style="color:#75715e"></span>        Some(Scope::empty())
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">react</span>(
+        <span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> self,
+        neighborhood: Option<span style="color:#f92672">&lt;</span>Neighborhood<span style="color:#f92672">&lt;</span>Self::Kind, Self::Context<span style="color:#f92672">&gt;&gt;</span>,
+    ) -&gt; Result<span style="color:#f92672">&lt;</span>(), Error<span style="color:#f92672">&gt;</span> {
+        <span style="color:#75715e">// given the scope of the Ant, we expect the seeable portion of the
+</span><span style="color:#75715e"></span>        <span style="color:#75715e">// environment to be just the tile where the Ant is currently
+</span><span style="color:#75715e"></span>        <span style="color:#75715e">// located
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> neighborhood <span style="color:#f92672">=</span> neighborhood.unwrap();
+        <span style="color:#66d9ef">let</span> tile <span style="color:#f92672">=</span> neighborhood.center_mut();
+        <span style="color:#75715e">// the tile in question can either be BLACK or WHITE, we encode this
+</span><span style="color:#75715e"></span>        <span style="color:#75715e">// information with a Cell entity or no entity respectively
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> entities <span style="color:#f92672">=</span> tile.entities_mut();
+        <span style="color:#66d9ef">let</span> cell <span style="color:#f92672">=</span> entities.find(<span style="color:#f92672">|</span>e<span style="color:#f92672">|</span> e.kind() <span style="color:#f92672">==</span> EntityKind::Cell);
+
+        <span style="color:#66d9ef">if</span> <span style="color:#66d9ef">let</span> Some(black_cell) <span style="color:#f92672">=</span> cell {
+            <span style="color:#75715e">// if the cell is BLACK, we flip its color by &#34;killing&#34; the
+</span><span style="color:#75715e"></span>            <span style="color:#75715e">// entity reducing its lifespan to 0 and move left
+</span><span style="color:#75715e"></span>            debug_assert_eq<span style="color:#f92672">!</span>(black_cell.location(), self.location());
+            <span style="color:#66d9ef">let</span> lifespan <span style="color:#f92672">=</span> black_cell.lifespan_mut().unwrap();
+            lifespan.clear();
+
+            <span style="color:#75715e">// update ant location
+</span><span style="color:#75715e"></span>            self.turn_left_and_move_forward();
+        } <span style="color:#66d9ef">else</span> {
+            <span style="color:#75715e">// if the cell is WHITE, we flip its color by creating a new
+</span><span style="color:#75715e"></span>            <span style="color:#75715e">// entity as offspring for the next generation, and move right
+</span><span style="color:#75715e"></span>            <span style="color:#66d9ef">let</span> black_cell <span style="color:#f92672">=</span> Cell::new(rand::random(), self.location);
+            self.offspring.insert(Box::new(black_cell));
+
+            <span style="color:#75715e">// update ant location
+</span><span style="color:#75715e"></span>            self.turn_right_and_move_forward();
+        }
+
+        Ok(())
+    }
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">offspring</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> self) -&gt; Option<span style="color:#f92672">&lt;</span>Offspring<span style="color:#f92672">&lt;</span><span style="color:#a6e22e">&#39;a</span>, Self::Kind, Self::Context<span style="color:#f92672">&gt;&gt;</span> {
+        <span style="color:#75715e">// release the offspring (if any) into the environment
+</span><span style="color:#75715e"></span>        Some(self.offspring.drain())
+    }
+}
+</code></pre></div><h2 id="final-thoughts">Final thoughts</h2>
+<p>At the time of writing, <code>semeion</code> is, as stated above, in a good enough state
+to be introduced to the world, but not in a final state and never will be in
+a perfect one.
+The whole point of this library is to let you enjoy writing your own logic,
+without having to rewrite &ldquo;the wheel of cellular automata&rdquo; and trying to do so
+by providing &ldquo;high level&rdquo; and generic enough interfaces that are relatively
+simple to use in Rust.</p>
+<p>Performance wise, I&rsquo;ve never had issues with the library, which also provides an
+optional <code>parallel</code> feature to run your simulations while exploiting multi-threading.
+Nevertheless, there are definitely more performant architectural patterns such as
+the <a href="https://en.wikipedia.org/wiki/Entity_component_system"target="_blank">Entity Component System</a>,
+and if you find yourself in need of such performance, please have a look at other
+more mature libraries, like <a href="https://bevyengine.org/"target="_blank">Bevy</a> or
+<a href="https://amethyst.rs/"target="_blank">Amethyst</a>.</p>
+<p>If you want to leave some feedback, or contribute to the project, please do so
+by opening an issue or a MR in the
+<a href="https://github.com/gliderkite/semeion"target="_blank">semeion repository</a>, I&rsquo;ll be glad to
+help or discuss it as the time allows it.</p>
+</article></div>
+<div class="article bottom"></div></section><section id="footer"><div class="footer-wrap">
+    <p class="copyright">gliderkite.io</p>
+    <p class="powerby"><span>Powered&nbsp;by&nbsp;</span><a href="https://gohugo.io" 
+        target="_blank">Hugo</a><span>&nbsp;&amp;&nbsp;</span><a href="https://themes.gohugo.io/hugo-notepadium/" 
+        target="_blank">Notepadium</a></p></div></section></body>
+
+</html>

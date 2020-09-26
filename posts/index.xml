@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Posts on gliderkite.io</title>
+    <link>/posts/</link>
+    <description>Recent content in Posts on gliderkite.io</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 26 Sep 2020 13:42:04 +0100</lastBuildDate>
+    
+        <atom:link href="/posts/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Semeion</title>
+      <link>/posts/semeion/</link>
+      <pubDate>Sat, 26 Sep 2020 13:42:04 +0100</pubDate>
+      
+      <guid>/posts/semeion/</guid>
+      <description>Overview This is an overview of a project I enjoyed working on over the past few months, which is now in a state that I consider good enough to be used for a toy kind of project.
+semeion is a small Rust library that allows you to write simulations that run in a 2D (torus) environment, well suited for cellular automata simulations or zero-player games.
+The purpose of this library is to try to generalize many of the common concepts and components that you may find yourself writing when working on these type of projects, allowing you to focus especially on the logic of your program.</description>
+      
+    </item>
+    
+  </channel>
+</rss>
