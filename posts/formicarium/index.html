@@ -5,7 +5,7 @@
 <meta name="twitter:title" content="Formicarium" /><body><section id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><img class="site logo" src="/img/logo.png" alt /><span class="site name">gliderkite.io</span></a></span>
         <span class="header right-side"></span></div></section><section id="content"><div class="article-container"><section class="article header">
-    <h1 class="article title">Formicarium</h1><p class="article date">2020-10-02</p></section><article class="article markdown-body"><p>This article is about <a href="https://en.wikipedia.org/wiki/Swarm_intelligence"target="_blank">swarm intelligence</a>,
+    <h1 class="article title">Formicarium</h1><p class="article date">2020-10-03</p></section><article class="article markdown-body"><p>This article is about <a href="https://en.wikipedia.org/wiki/Swarm_intelligence"target="_blank">swarm intelligence</a>,
 and how we can try to simulate it to show how collective behavior can unlock
 better solutions to problems that may otherwise remain unsolved.</p>
 <p>From Wikipedia, we can define Swarm Intelligence (SI) as:</p>
@@ -13,9 +13,10 @@ better solutions to problems that may otherwise remain unsolved.</p>
 <p>SI systems consist typically of a population of simple agents or boids interacting locally with one another and with their environment
 &hellip; The agents follow very simple rules, and although there is no centralized control structure dictating how individual agents should behave, local, and to a certain degree random, interactions between such agents lead to the emergence of &ldquo;intelligent&rdquo; global behavior, unknown to the individual agents.</p>
 </blockquote>
-<p>One of the most common examples of swarm intelligence are ant colonies, and this
-is what <a href="https://github.com/gliderkite/formicarium"target="_blank">formicarium</a> tries to simulate.</p>
-<p>The main idea is to show how the collective behavior of decentralized and
+<p>One of the most common examples of swarm intelligence systems are ant colonies,
+and this is what <a href="https://github.com/gliderkite/formicarium"target="_blank">formicarium</a> tries
+to simulate.</p>
+<p>The purpose is to show how the collective behavior of decentralized and
 self-organized artificial systems allows multiple organism to perform better
 when working together to achieve the same goal, compared with a single organism,
 given the same set of skills and the same environment.</p>
@@ -84,9 +85,9 @@ println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Sim
 <a href="https://gliderkite.github.io/posts/semeion"target="_blank">this post</a>.</p>
 <h2 id="the-ants">The Ants</h2>
 <p>The ants are the only active entities that take part in the simulation, where
-the idea behind it is that all the ants have a determined and equal set of skills,
-and they can make decisions that will affect their actions (such as movement)
-according to the portion of the environment they can see and interact with.</p>
+all the ants have a determined and equal set of skills, and they can make
+decisions that will affect their actions (such as movement) according to the
+portion of the environment they can see and interact with.</p>
 <p>Each ant can either be looking for food (<em>foraging</em>) or, having already collected
 the food from a morsel, be bringing the food back to the nest (<em>carrying</em>).</p>
 <p>According to the current ant task, its single goal is to find a specific target
@@ -104,7 +105,7 @@ currently populate the visible portion of this environment subset.</p>
 trusting the trail of pheromones left previously by other ants (or itself) in
 order to find its target, or cancel it out by rejecting the information found
 because it&rsquo;s misleading and thought to possibly lead to a dead end.</p>
-<p>Ants cannot communicate directly with each other, therefore this information
+<p>Ants cannot communicate directly with each other†, therefore this information
 can only be exchanged by leaving pheromone entities in the environment, where
 each pheromone has an intrinsic property of concentration that can be increased
 or reduced by the ants (and decreases over time to simulate evaporation).
@@ -120,9 +121,16 @@ be close to its target.</p>
 <p>Given this behavior, the higher the number of ants, the stronger the pheromone
 trails will be reinforced (or weakened), giving numerous groups of ants
 advantages over smaller ones.</p>
+<p>† There are some circumstances where direct communication is required, such as
+when two or more ants occupy the same morsel location that contains a single
+portion of food. In that case only a single ant can take the food; this is
+solved by building consensus so that all the ants elect a <em>leader</em> between them
+that will be in charge of bringing the food found back to the colony nest, while
+the other ants will continue in their search for other morsels.</p>
 <h2 id="running-the-simulation">Running the simulation</h2>
-<p>If you want to run <code>formicarium</code>, the first thing to do is to
-<a href="https://www.rust-lang.org/tools/install"target="_blank">install Rust</a>, clone the repository</p>
+<p>If you want to run <a href="https://github.com/gliderkite/formicarium"target="_blank">formicarium</a>, the
+first thing to do is to <a href="https://www.rust-lang.org/tools/install"target="_blank">install Rust</a>,
+clone the repository</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">git clone https://github.com/gliderkite/formicarium.git
 </code></pre></div><p>and finally run with:</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">cargo run --release -- conf.json
@@ -171,6 +179,8 @@ established.</p>
 using always the same configuration parameters but changing the number of ants, to
 see how effectively the increase in the number of ants would reflect in the number
 of generations needed to collect all the food and terminate the simulation.</p>
+<p>You can find the simulation configuration, as well as the code to run the simulation,
+in the <a href="https://github.com/gliderkite/formicarium"target="_blank">formicarium repository</a>.</p>
 <p>The simulation was run 10 times per number of ants, and what I show here are the
 mean values.</p>
 <p><img  src="/img/formicarium/stats.png"
