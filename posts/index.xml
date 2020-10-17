@@ -6,10 +6,21 @@
     <description>Recent content in Posts on gliderkite.io</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 03 Oct 2020 08:38:58 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 17 Oct 2020 10:06:30 +0100</lastBuildDate>
     
         <atom:link href="/posts/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Learn Rust With Benford&#39;s Law</title>
+      <link>/posts/learn-rust-with-benford/</link>
+      <pubDate>Sat, 17 Oct 2020 10:06:30 +0100</pubDate>
+      
+      <guid>/posts/learn-rust-with-benford/</guid>
+      <description>When was the last time you read anything containing a significant amount of non-randomly generated numbers?
+What if I told you that the first digits of those numbers follow a well defined frequency distribution, and that it would be possible to predict the frequency of every single leading digit $[1-9]$ with good accuracy?</description>
+      
+    </item>
     
     <item>
       <title>Formicarium</title>

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.76.0" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.74.3" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Learn Rust With Benford&#39;s Law&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.bb63ab4cc0e0032fd2ca30f335cb35c4f5cafac23eebb82f26f433db599aad0d085ef21d28c17e85ac0819214d5a06bc.css" integrity="sha384-u2OrTMDgAy/SyjDzNcs1xPXK&#43;sI&#43;67gvJvQz21marQ0IXvIdKMF&#43;hawIGSFNWga8"><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>Learn Rust With Benford&#39;s Law&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.3072e9c288847eaa0671aba0c25fc181a253c580fa2d5e6f071bea3bd3ea5335f850db620a170bbfde32a25057f95258.css" integrity="sha384-MHLpwoiEfqoGcaugwl/BgaJTxYD6LV5vBxvqO9PqUzX4UNtiChcLv94yolBX&#43;VJY"><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Learn Rust With Benford&#39;s Law" /><body><section id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><img class="site logo" src="/img/logo.png" alt /><span class="site name">gliderkite.io</span></a></span>
         <span class="header right-side"></span></div></section><section id="content"><div class="article-container"><section class="article header">
-    <h1 class="article title">Learn Rust With Benford's Law</h1><p class="article date">2020-10-11</p></section><article class="article markdown-body"><p>When was the last time you read anything containing a significant amount of
+    <h1 class="article title">Learn Rust With Benford's Law</h1><p class="article date">2020-10-17</p></section><article class="article markdown-body"><p>When was the last time you read anything containing a significant amount of
 non-randomly generated numbers?</p>
 <p>What if I told you that the first digits of those numbers follow a well
 defined frequency distribution, and that it would be possible to predict the
@@ -18,7 +18,7 @@ are already many and well written resources <a href="https://www.rust-lang.org/l
 was writing the code to check the above statements, I realized how nicely this
 little project could work as a brief and practical introduction to the
 language, while also showing from a different angle <a href="https://stackoverflow.blog/2020/06/05/why-the-developers-who-use-rust-love-it-so-much/"target="_blank">why all the hype around it</a>, and how does it actually feel to work with it.</p>
-<p>And this is possible thanks to the fact that Benford&rsquo;s law is an observation that
+<p>And this was possible thanks to the fact that Benford&rsquo;s law is an observation that
 can be very easily verified, and doing so allows us to touch not just different parts
 of the Rust language itself, but also many of the important tools that come with it.</p>
 <h3 id="prerequisites">Prerequisites</h3>
@@ -108,7 +108,7 @@ chapter:</p>
 </code></pre><p>Cargo will create a new folder with the following structure:</p>
 <pre><code>benford
 ├── Cargo.toml
-├── src/
+├── src
 │   ├── main.rs
 </code></pre><p>The <code>Cargo.toml</code> file, is a <a href="https://en.wikipedia.org/wiki/TOML"target="_blank">TOML</a> file, where we can specify our package
 name and version, and the project&rsquo;s external dependencies (currently none):</p>
@@ -234,8 +234,9 @@ which can be propagated and handled when most appropriate.</li>
 <p>The easiest way to handle errors, especially when writing examples, is probably to
 <code>panic!</code>, and this is exactly what our code does: if the file cannot be opened
 for any reason, <code>.expect()</code> will simply call internally <code>panic!</code> with the given
-error message and terminate the program. This is what happens for example if the
-census file doesn&rsquo;t exist:</p>
+error message and terminate the program, otherwise it will <em>unwrap</em> the content
+of the <code>Result::Ok(Type)</code> variant (now stored in the variable <code>file</code>). This is
+what happens for example if the census file doesn&rsquo;t exist:</p>
 <pre><code class="language-console" data-lang="console">$ cargo run
 thread 'main' panicked at 'Cannot read dataset: Os { code: 2, kind: NotFound, message: &quot;No such file or directory&quot; }', src/main.rs:5:40
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
@@ -257,9 +258,9 @@ println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Par
 </code></pre></div><p>You can see how each record is actually wrapped in a
 <code>Result&lt;csv::StringRecord, csv::Error&gt;</code> (since there may be records with invalid
 format in the file).
-For this reason, we need to <em>unwrap</em> it with <code>.expect()</code> to get its
+For this reason, we need to unwrap it with <code>.expect()</code> to get its
 <code>csv::StringRecord</code> if the record is valid, like we&rsquo;ve done before when opening
-the  <code>File</code> (or <code>panic!</code> when it&rsquo;s not and the <code>Result</code> contains an <code>Error</code>).</p>
+the  <code>File</code> (or <code>panic!</code> when it&rsquo;s not valid and the <code>Result</code> contains an <code>Error</code>).</p>
 <p>Notice also how the variable name <code>record</code> after the unwrapping is the same as
 the one declared in the <code>for</code> loop. This is possible because Rust allows
 <a href="https://en.wikipedia.org/wiki/Variable_shadowing"target="_blank">variable shadowing</a> (in this particular case the outer variable declared in
@@ -275,11 +276,11 @@ the loop will be <em>shadowed</em> by the inner variable declared within it).</p
   |                   ^^^^^^ cannot borrow as mutable
 </code></pre><p>As you can see, the reason why we cannot compile this code is because the method
 we are trying to use (<a href="https://docs.rs/csv/1.1.3/csv/struct.Reader.html#method.records"target="_blank"><code>csv::Reader::records(&amp;mut self)</code></a>) requires us to
-<em>mutably borrow</em> our instance or <code>Reader</code> (this is what <code>&amp;mut self</code> means - if
+<em>mutably borrow</em> our instance of <code>Reader</code> (this is what <code>&amp;mut self</code> means - if
 the method needed to <em>immutably borrow</em>, we would have found it written as <code>&amp;self</code>),
 and by default all declared variables in Rust are <em>immutable</em>.</p>
-<p>As the compiler is suggesting, we simply need to declare the variable mutable by
-adding <code>mut</code> in front of the variable name to fix our code:</p>
+<p>As the compiler is suggesting, we simply need to declare the <code>reader</code> variable
+mutable by adding <code>mut</code> in front of the variable name to fix our code:</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> reader <span style="color:#f92672">=</span> csv::Reader::from_reader(file);
 </code></pre></div><p>We can now iterate over all the towns, but what exactly are we printing when
 using the macro <code>println!(&quot;{:?}&quot;, record)</code>?</p>
@@ -295,7 +296,7 @@ structure with integer (32 bits) abscissa and ordinate fields:</p>
 <span style="color:#66d9ef">let</span> origin <span style="color:#f92672">=</span> Point { x: <span style="color:#ae81ff">0</span>, y: <span style="color:#ae81ff">0</span> };
 </code></pre></div><p>If you would like to print the value of your point to the standard output, the
 only thing you need to do is to derive the <code>Debug</code> trait with a
-<a href="https://doc.rust-lang.org/reference/procedural-macros.html"target="_blank">procedural derive macro</a>:</p>
+<a href="https://doc.rust-lang.org/reference/procedural-macros.html"target="_blank">procedural derive macro</a>, to be able to use the <code>{:?}</code> syntax:</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">#[derive(Debug)]</span>
 <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Point</span> {
     x: <span style="color:#66d9ef">i32</span>,
@@ -335,13 +336,13 @@ want to display it. This is where logging can help, even when just redirecting
 output to stdout.</p>
 <p>What we need is a logging <em>facade</em> (that offers an abstraction to the
 logging APIs we are going to use) and an implementation. These can be found
-respectively in the <a href="https://docs.rs/log/0.4.11/log/"target="_blank"><code>log</code> crate</a> and in the <a href="https://docs.rs/env_logger/0.7.1/env_logger/"target="_blank"><code>env_logger</code> crate</a> (but
+respectively in the <a href="https://docs.rs/log/0.4.11/log/"target="_blank"><code>log</code> crate</a> and in the <a href="https://docs.rs/env_logger/0.8.1/env_logger/index.html"target="_blank"><code>env_logger</code> crate</a> (but
 there are several other implementations that you are free to try out).</p>
 <p>As we have done for the <code>csv</code> library, the first thing to do is to import them
 as new dependencies in our <code>Cargo.toml</code> file:</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-toml" data-lang="toml">[<span style="color:#a6e22e">dependencies</span>]
 <span style="color:#a6e22e">csv</span> = <span style="color:#e6db74">&#34;1.1.3&#34;</span>
-<span style="color:#a6e22e">env_logger</span> = <span style="color:#e6db74">&#34;0.7.1&#34;</span>
+<span style="color:#a6e22e">env_logger</span> = <span style="color:#e6db74">&#34;0.8.1&#34;</span>
 <span style="color:#a6e22e">log</span> = <span style="color:#e6db74">&#34;0.4.11&#34;</span>
 </code></pre></div><p>Using a logger is relatively simple, we just need to initialize the logger
 implementation and then use the various log APIs provided by the facade
@@ -392,7 +393,7 @@ the <a href="https://docs.rs/csv/1.1.3/csv/struct.StringRecord.html#method.get"t
 
 ...
 </code></pre><p>From this output, it looks like we are not just dealing with strings; in fact, as
-you can see, these are wrapped in a type which debug representation prints as, for
+you can see, these are wrapped in a type which <code>Debug</code> representation is, for
 example, <code>Some(&quot;Airasca&quot;)</code> or <code>Some(&quot;3790&quot;)</code>.</p>
 <p>You are now meeting what is, with <code>Result</code>, possibly the most important enum in
 Rust: <a href="https://doc.rust-lang.org/std/option/enum.Option.html"target="_blank"><code>Option</code></a>. The <code>Option</code> type, as the name suggests,
@@ -401,7 +402,7 @@ the Rust type system allows us to know at compile time whether the option can be
 unwrapped while safely getting its content, or if instead it does not contain
 anything. And this feature helps to prevent a class of bugs that in other languages
 is related to the <a href="https://en.wikipedia.org/wiki/Tony_Hoare#Apologies_and_retractions"target="_blank">billion dollar mistake</a> (where the type system includes
-null references or pointers).</p>
+null references or null pointers).</p>
 <p>In order to use an <code>Option</code>, we can introduce another important feature of Rust:
 <a href="https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html"target="_blank">pattern matching</a>. Basically, what we need is to match the value of the
 <code>Option</code> that represents the city population with a pattern that can be either
@@ -461,9 +462,10 @@ it&rsquo;s a character wrapped in an <code>Option</code>, since the <code>popula
 string and the first character may not even exist, and therefore we are forced
 to deal with this scenario as we did previously with the population record.</p>
 <p>But our loop logic is starting to become more difficult to follow, and it would
-get worse if we start adding another pattern matching. Maybe we could extrapolate
+get worse if we started adding another pattern matching. Maybe we could extract
 part of the logic into a separate function that, given an immutable reference to
-a valid record, would return the first digit of the population value as character.</p>
+a valid record, would optionally return the first digit of the population value
+as character.</p>
 <p>This is what a possible implementation could look like:</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">get_first_digit</span>(record: <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">csv</span>::StringRecord) -&gt; Option<span style="color:#f92672">&lt;</span>char<span style="color:#f92672">&gt;</span> {
     log::trace<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Parsing record: {:?}&#34;</span>, record);
@@ -498,12 +500,13 @@ only valid characters:</p>
     .and_then(<span style="color:#f92672">|</span>population<span style="color:#f92672">|</span> population.chars().next())
     .filter(<span style="color:#f92672">|</span>c<span style="color:#f92672">|</span> c.is_ascii_digit() <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">*</span>c <span style="color:#f92672">!=</span> <span style="color:#e6db74">&#39;0&#39;</span>)
 </code></pre></div><p>As you can see in the last step, we use the <a href="https://doc.rust-lang.org/std/option/enum.Option.html#method.filter"target="_blank"><code>Option::filter</code></a> method to
-keep every character that is a digit $[0-9]$, but since our numbers can only start
-with $[1-9]$ we need to take that into account and remove any possible string
-starting with the character <code>'0'</code>. If these conditions are not satisfied, our new
-function will simply return <code>None</code>, as if no digit was found for the given record.</p>
+keep every character that is an ASCII digit $[0-9]$, but since our numbers can
+only start with $[1-9]$ we need to take that into account and remove any possible
+string starting with the character <code>'0'</code>. If these conditions are not satisfied,
+our new function will simply return <code>None</code>, as if no digit was found for the
+given record.</p>
 <p>If you find the syntax <code>*c != '0'</code> odd, you just need to know that the <code>filter</code>
-closure input <code>c</code> is a reference to a character, and therefore it must be
+closure input <code>c</code> is a reference to a character, and therefore it needs to be
 <a href="https://en.wikipedia.org/wiki/Dereference_operator"target="_blank">dereferenced</a> before being compared to another character.</p>
 <p>Now we can match the <code>Option</code> returned by this function in our loop, and we can
 do so by introducing an alternative but equivalent syntax to <code>match</code>:</p>
@@ -533,23 +536,18 @@ find a hash table implementation in the Rust standard library under the
 <a href="https://doc.rust-lang.org/beta/std/collections/struct.HashMap.html"target="_blank"><code>HashMap</code> type</a>. The keys of our map will be the digits $[1-9]$ as we
 parse them (i.e. as characters), while the values will be integer values that
 correspond to how many times we found that leading digit in the records.</p>
-<p>Before inserting the frequency values in the <code>HashMap</code>, we need to initialize it
-with the values we would expect to find if the census file was empty:</p>
+<p>We can now proceed and fill up the frequency map:</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::collections::HashMap;
 
 <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> frequency <span style="color:#f92672">=</span> HashMap::new();
-<span style="color:#66d9ef">for</span> n <span style="color:#66d9ef">in</span> <span style="color:#ae81ff">1</span>..<span style="color:#f92672">=</span><span style="color:#ae81ff">9</span> {
-    <span style="color:#75715e">// digit to char conversion in base 10
-</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">let</span> digit <span style="color:#f92672">=</span> std::char::from_digit(n, <span style="color:#ae81ff">10</span>).expect(<span style="color:#e6db74">&#34;Invalid digit&#34;</span>);
-    frequency.insert(digit, <span style="color:#ae81ff">0</span>);
-}
-</code></pre></div><p>Then we can proceed by filling up the frequency map:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
+
+<span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
     <span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> record.expect(<span style="color:#e6db74">&#34;Invalid record&#34;</span>);
 
     <span style="color:#66d9ef">if</span> <span style="color:#66d9ef">let</span> Some(digit) <span style="color:#f92672">=</span> get_first_digit(record) {
-        <span style="color:#75715e">// find the value corresponding to the digit key
-</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">let</span> count <span style="color:#f92672">=</span> frequency.get_mut(<span style="color:#f92672">&amp;</span>digit).expect(<span style="color:#e6db74">&#34;Digit not found&#34;</span>);
+        <span style="color:#75715e">// find the value corresponding to the digit key or insert a new
+</span><span style="color:#75715e"></span>        <span style="color:#75715e">// entry with an initial value of 0
+</span><span style="color:#75715e"></span>        <span style="color:#66d9ef">let</span> count <span style="color:#f92672">=</span> frequency.entry(digit).or_insert(<span style="color:#ae81ff">0</span>);
         <span style="color:#75715e">// count is a mutable reference to the value in the HashMap
 </span><span style="color:#75715e"></span>        <span style="color:#75715e">// increment its value by 1 after dereferencing it
 </span><span style="color:#75715e"></span>        <span style="color:#f92672">*</span>count <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>;
@@ -557,11 +555,15 @@ with the values we would expect to find if the census file was empty:</p>
 }
 
 log::debug<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Frequency: {:?}&#34;</span>, frequency);
-</code></pre></div><p>As you can see, we are also checking if the current digit exists as key in our
-frequency map, since the method <a href="https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get_mut"target="_blank"><code>HashMap::get_mut</code></a> would return <code>None</code>
-otherwise. But since we sanitize the input in our <code>get_first_digit()</code> method, we
-can be sure the value returned will never be <code>None</code> and therefore the <code>.expect()</code>
-will never <code>panic!</code>.</p>
+</code></pre></div><p>As you can see, we were able to skip the initialization of the <code>HashMap</code> (that
+could have been initialized with all zeros values for each key digit - as to
+represent and empty census file), and rely on our <code>get_first_digit</code> function, which
+returns <code>Some(digit)</code> only if the parsed <code>record</code> is valid.</p>
+<p>Once we have a valid digit, we query the frequency map to get the current value
+representing how many times we already encountered it, and increment its
+value (<code>count</code>) by 1.
+If the digit we are trying to use as key doesn&rsquo;t belong yet to the frequency map,
+a new entry will be created with an initial value equal to 0.</p>
 <pre><code class="language-console" data-lang="console">$ RUST_LOG=debug cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
@@ -597,10 +599,11 @@ percentage of how often they appear.</p>
 
 log::info<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Percentage: {:#.2?}&#34;</span>, percentage);
 </code></pre></div><p>What happens in the above code is that, after we compute the sum of all the
-frequency values, we create a new <code>BTreeMap</code> by iterating over all the key-value
-pairs of our frequency map and, for each of these, we keep the digit as is while
-the value is mapped to its respective percentage, to then finally collect all
-the new key-value pairs into the new data structure.</p>
+frequency values (i.e. how many total digits we encountered), we create a new
+<code>BTreeMap</code> by iterating over all the key-value pairs of our frequency map and,
+for each of these, we keep the <code>digit</code> as is while the value <code>count</code> is mapped to
+its respective percentage, to then finally collect all the new key-value pairs
+into the new data structure.</p>
 <p>And, believe it or not, this is what we get:</p>
 <pre><code class="language-console" data-lang="console">Percentage: {
     '1': 0.31,
@@ -712,8 +715,10 @@ managed to complete a nice implementation to show the <em>weirdness</em> of Benf
 in less than 50 lines of code.</p>
 <p>I leave you with the full code, so that you can have a single place where to
 review everything we&rsquo;ve seen so far.</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::collections::{BTreeMap, HashMap};
-<span style="color:#66d9ef">use</span> std::{env, fs};
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::{
+    collections::{BTreeMap, HashMap},
+    env, fs,
+};
 
 <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">main</span>() {
     env_logger::init();
@@ -728,16 +733,12 @@ review everything we&rsquo;ve seen so far.</p>
     <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> reader <span style="color:#f92672">=</span> csv::Reader::from_reader(file);
 
     <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> frequency <span style="color:#f92672">=</span> HashMap::new();
-    <span style="color:#66d9ef">for</span> n <span style="color:#66d9ef">in</span> <span style="color:#ae81ff">1</span>..<span style="color:#f92672">=</span><span style="color:#ae81ff">9</span> {
-        <span style="color:#66d9ef">let</span> digit <span style="color:#f92672">=</span> std::char::from_digit(n, <span style="color:#ae81ff">10</span>).expect(<span style="color:#e6db74">&#34;Invalid digit&#34;</span>);
-        frequency.insert(digit, <span style="color:#ae81ff">0</span>);
-    }
 
     log::info<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Parsing CSV records&#34;</span>);
     <span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records().filter_map(Result::ok) {
         <span style="color:#66d9ef">if</span> <span style="color:#66d9ef">let</span> Some(digit) <span style="color:#f92672">=</span> get_first_digit(<span style="color:#f92672">&amp;</span>record) {
             log::trace<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Found digit &#39;{}&#39; in {:?}&#34;</span>, digit, record);
-            <span style="color:#66d9ef">let</span> count <span style="color:#f92672">=</span> frequency.get_mut(<span style="color:#f92672">&amp;</span>digit).expect(<span style="color:#e6db74">&#34;Digit not found&#34;</span>);
+            <span style="color:#66d9ef">let</span> count <span style="color:#f92672">=</span> frequency.entry(digit).or_insert(<span style="color:#ae81ff">0</span>);
             <span style="color:#f92672">*</span>count <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>;
         } <span style="color:#66d9ef">else</span> {
             log::warn<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;No valid digit found in {:?}&#34;</span>, record);
@@ -814,9 +815,8 @@ try using <a href="https://github.com/rust-lang/rust-clippy"target="_blank">clip
 </li>
 <li id="fn:5" role="doc-endnote">
 <p>The borrow checker is out of the scope of this post; for now you just need to
-know that is thanks to the borrow checker that the Rust compiler is able to
-prevent <a href="https://en.wikipedia.org/wiki/Race_condition#Data_race"target="_blank">data races</a> (and consequent <a href="https://en.wikipedia.org/wiki/Undefined_behavior"target="_blank">undefined behavior</a>) at
-<strong>compile time</strong>. <a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+know that is thanks to the borrow checker that the Rust compiler can prevent
+<a href="https://en.wikipedia.org/wiki/Race_condition#Data_race"target="_blank">data races</a> (and consequent <a href="https://en.wikipedia.org/wiki/Undefined_behavior"target="_blank">undefined behavior</a>) at <strong>compile time</strong>. <a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:6" role="doc-endnote">
 <p>Dependency management is <a href="https://en.wikipedia.org/wiki/Dependency_hell"target="_blank">very, very hard</a>. <a href="#fnref:6" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
