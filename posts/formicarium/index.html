@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.74.3" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Formicarium&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.3072e9c288847eaa0671aba0c25fc181a253c580fa2d5e6f071bea3bd3ea5335f850db620a170bbfde32a25057f95258.css" integrity="sha384-MHLpwoiEfqoGcaugwl/BgaJTxYD6LV5vBxvqO9PqUzX4UNtiChcLv94yolBX&#43;VJY"><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>Formicarium&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.fbccb1acab1cdfa1a69b4dacd7cf183c9bdb0cf812dd8d010803c1aabe273fcf9060d58a9c009152ede2f04dc6b5a2fc.css" integrity="sha384-&#43;8yxrKsc36Gmm02s188YPJvbDPgS3Y0BCAPBqr4nP8&#43;QYNWKnACRUu3i8E3GtaL8"><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Formicarium" /><body><section id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><img class="site logo" src="/img/logo.png" alt /><span class="site name">gliderkite.io</span></a></span>
-        <span class="header right-side"></span></div></section><section id="content"><div class="article-container"><section class="article header">
-    <h1 class="article title">Formicarium</h1><p class="article date">2020-10-03</p></section><article class="article markdown-body"><p>This article is about <a href="https://en.wikipedia.org/wiki/Swarm_intelligence"target="_blank">swarm intelligence</a>,
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/about">About</a></nav></div></span></div></section><section id="content"><div class="article-container"><section class="article header">
+    <h1 class="article title">Formicarium</h1><p class="article date">Oct 03, 2020<span class="reading-time"> • 9 minutes to read</span></p></section><article class="article markdown-body"><p>This article is about <a href="https://en.wikipedia.org/wiki/Swarm_intelligence"target="_blank" rel="noopener noreferrer">swarm intelligence</a>
+,
 and how we can try to simulate it to show how collective behavior can unlock
 better solutions to problems that may otherwise remain unsolved.</p>
 <p>From Wikipedia, we can define Swarm Intelligence (SI) as:</p>
@@ -14,16 +15,19 @@ better solutions to problems that may otherwise remain unsolved.</p>
 &hellip; The agents follow very simple rules, and although there is no centralized control structure dictating how individual agents should behave, local, and to a certain degree random, interactions between such agents lead to the emergence of &ldquo;intelligent&rdquo; global behavior, unknown to the individual agents.</p>
 </blockquote>
 <p>One of the most common examples of swarm intelligence systems are ant colonies,
-and this is what <a href="https://github.com/gliderkite/formicarium"target="_blank">formicarium</a> tries
+and this is what <a href="https://github.com/gliderkite/formicarium"target="_blank" rel="noopener noreferrer">formicarium</a>
+ tries
 to simulate.</p>
 <p>The purpose is to show how the collective behavior of decentralized and
 self-organized artificial systems allows multiple organism to perform better
 when working together to achieve the same goal, compared with a single organism,
 given the same set of skills and the same environment.</p>
 <h2 id="overview">Overview</h2>
-<p>The <a href="https://github.com/gliderkite/formicarium"target="_blank">formicarium emulator</a> is a
+<p>The <a href="https://github.com/gliderkite/formicarium"target="_blank" rel="noopener noreferrer">formicarium emulator</a>
+ is a
 project written in Rust, using the
-<a href="https://github.com/gliderkite/semeion"target="_blank">semeion engine</a>†.</p>
+<a href="https://github.com/gliderkite/semeion"target="_blank" rel="noopener noreferrer">semeion engine</a>
+†.</p>
 <p>Formicarium is a zero-player game where you are in control of the initial
 environment configuration, and the only rule is that your ants need to collect all the
 food they find on the environment and bring it back to their nest.</p>
@@ -82,7 +86,8 @@ organisms work together.</p>
 
 println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Simulation over after {} generations&#34;</span>, state.env.generation());
 </code></pre></div><p>† If you want to know more about <code>semeion</code>, please have a look at
-<a href="https://gliderkite.github.io/posts/semeion"target="_blank">this post</a>.</p>
+<a href="https://gliderkite.github.io/posts/semeion"target="_blank" rel="noopener noreferrer">this post</a>
+.</p>
 <h2 id="the-ants">The Ants</h2>
 <p>The ants are the only active entities that take part in the simulation, where
 all the ants have a determined and equal set of skills, and they can make
@@ -128,8 +133,10 @@ solved by building consensus so that all the ants elect a <em>leader</em> betwee
 that will be in charge of bringing the food found back to the colony nest, while
 the other ants will continue in their search for other morsels.</p>
 <h2 id="running-the-simulation">Running the simulation</h2>
-<p>If you want to run <a href="https://github.com/gliderkite/formicarium"target="_blank">formicarium</a>, the
-first thing to do is to <a href="https://www.rust-lang.org/tools/install"target="_blank">install Rust</a>,
+<p>If you want to run <a href="https://github.com/gliderkite/formicarium"target="_blank" rel="noopener noreferrer">formicarium</a>
+, the
+first thing to do is to <a href="https://www.rust-lang.org/tools/install"target="_blank" rel="noopener noreferrer">install Rust</a>
+,
 clone the repository</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">git clone https://github.com/gliderkite/formicarium.git
 </code></pre></div><p>and finally run with:</p>
@@ -180,7 +187,8 @@ using always the same configuration parameters but changing the number of ants, 
 see how effectively the increase in the number of ants would reflect in the number
 of generations needed to collect all the food and terminate the simulation.</p>
 <p>You can find the simulation configuration, as well as the code to run the simulation,
-in the <a href="https://github.com/gliderkite/formicarium"target="_blank">formicarium repository</a>.</p>
+in the <a href="https://github.com/gliderkite/formicarium"target="_blank" rel="noopener noreferrer">formicarium repository</a>
+.</p>
 <p>The simulation was run 10 times per number of ants, and what I show here are the
 mean values.</p>
 <p><img  src="/img/formicarium/stats.png"
@@ -200,10 +208,11 @@ of ants in relative terms). Then, we can observe a period where the ants perform
 the red line). Finally, the number of generations starts to converge to a value
 that doesn&rsquo;t seem to decrease independently of how many ants we keep introducing
 to the environment (that can signify we have saturated the environment).</p>
-</article><section class="article author"><div class="details"><a class="item" href="https://github.com/gliderkite" target="_blank"><span class="iconfont icon-github"></span>&nbsp;gliderkite</a><a class="item" href="https://twitter.com/gliderkite" target="_blank"><span class="iconfont icon-twitter"></span>&nbsp;@gliderkite</a><a class="item" href="mailto:gliderkite@gmail.com" target="_blank"><span class="iconfont icon-email"></span>&nbsp;gliderkite@gmail.com</a></div>
-</section></div>
+</article><section class="article author"><div class="details"><a class="item" href="https://github.com/gliderkite" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-github"></span>&nbsp;gliderkite</a><a class="item" href="https://twitter.com/gliderkite" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-twitter"></span>&nbsp;@gliderkite</a><a class="item" href="mailto:gliderkite@gmail.com" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-email"></span>&nbsp;gliderkite@gmail.com</a></div>
+</section>
+</div>
 <div class="article bottom"><section class="article navigation"><p><a class="link" href="/posts/learn-rust-with-benford/"><span class="iconfont icon-article"></span>Learn Rust With Benford's Law</a></p><p><a class="link" href="/posts/semeion/"><span class="iconfont icon-article"></span>Semeion</a></p></section></div></section><section id="footer"></section><script defer type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML" integrity="sha384-e/4/LvThKH1gwzXhdbY2AsjR3rm7LHWyhIG5C0jiRfn8AN2eTN5ILeztWw0H9jmN" crossorigin="anonymous"></script>
         <script
-            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script></body>
+            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script><script src="/js/hljs.min.0799348a91dce12c6be4a73f943cfe78f181f4e6f6ec35c4af0fca1de377879f77cfab03c30f03a174d675737b5a9314.js" integrity="sha384-B5k0ipHc4Sxr5Kc/lDz&#43;ePGB9Ob27DXErw/KHeN3h593z6sDww8DoXTWdXN7WpMU"></script><script>hljs.initHighlightingOnLoad();</script></body>
 
 </html>

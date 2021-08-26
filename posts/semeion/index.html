@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.74.3" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Semeion&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.3072e9c288847eaa0671aba0c25fc181a253c580fa2d5e6f071bea3bd3ea5335f850db620a170bbfde32a25057f95258.css" integrity="sha384-MHLpwoiEfqoGcaugwl/BgaJTxYD6LV5vBxvqO9PqUzX4UNtiChcLv94yolBX&#43;VJY"><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>Semeion&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.fbccb1acab1cdfa1a69b4dacd7cf183c9bdb0cf812dd8d010803c1aabe273fcf9060d58a9c009152ede2f04dc6b5a2fc.css" integrity="sha384-&#43;8yxrKsc36Gmm02s188YPJvbDPgS3Y0BCAPBqr4nP8&#43;QYNWKnACRUu3i8E3GtaL8"><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Semeion" /><body><section id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><img class="site logo" src="/img/logo.png" alt /><span class="site name">gliderkite.io</span></a></span>
-        <span class="header right-side"></span></div></section><section id="content"><div class="article-container"><section class="article header">
-    <h1 class="article title">Semeion</h1><p class="article date">2020-09-26<span class="lastmod"> • edited 2020-10-03</span></p></section><article class="article markdown-body"><p>This is an overview of a project I enjoyed working on over the past few
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/about">About</a></nav></div></span></div></section><section id="content"><div class="article-container"><section class="article header">
+    <h1 class="article title">Semeion</h1><p class="article date">Sep 26, 2020<span class="reading-time"> • 9 minutes to read</span></p></section><article class="article markdown-body"><p>This is an overview of a project I enjoyed working on over the past few
 months, which is now in a state that I consider good enough to be used for a toy
 kind of project.</p>
-<p><a href="https://github.com/gliderkite/semeion"target="_blank">semeion</a> is a small Rust library that
+<p><a href="https://github.com/gliderkite/semeion"target="_blank" rel="noopener noreferrer">semeion</a>
+ is a small Rust library that
 allows you to write simulations that run in a 2D
-(<a href="https://en.wikipedia.org/wiki/Torus"target="_blank">torus</a>) environment, well suited for
-<a href="https://en.wikipedia.org/wiki/Cellular_automaton"target="_blank">cellular automata</a> simulations
-or <a href="https://en.wikipedia.org/wiki/Zero-player_game"target="_blank">zero-player games</a>.</p>
+(<a href="https://en.wikipedia.org/wiki/Torus"target="_blank" rel="noopener noreferrer">torus</a>
+) environment, well suited for
+<a href="https://en.wikipedia.org/wiki/Cellular_automaton"target="_blank" rel="noopener noreferrer">cellular automata</a>
+ simulations
+or <a href="https://en.wikipedia.org/wiki/Zero-player_game"target="_blank" rel="noopener noreferrer">zero-player games</a>
+.</p>
 <p>The purpose of this library is to try to generalize many of the common concepts
 and components that you may find yourself writing when working on these type
 of projects, allowing you to focus especially on the logic of your program.</p>
@@ -81,7 +85,8 @@ next generation until the simulation is over:</p>
 of the <code>semeion</code> library: the <code>Entity</code> trait.</p>
 <p>† This concept is not unique to <code>semeion</code>, in fact you can find it in a lot in
 optimization problems solved with
-<a href="https://en.wikipedia.org/wiki/Genetic_algorithm#Optimization_problems"target="_blank">genetic algorithms</a>.</p>
+<a href="https://en.wikipedia.org/wiki/Genetic_algorithm#Optimization_problems"target="_blank" rel="noopener noreferrer">genetic algorithms</a>
+.</p>
 <h2 id="the-entity-trait">The Entity trait</h2>
 <p>The <code>Entity</code> is a trait that can be implemented by the user of this library to
 define the behavior (and optionally the shape) of each entity <em>kind</em>.</p>
@@ -167,11 +172,13 @@ uniqueness (aliasing).</p>
 <p>At this point, we are finally able to focus on our entities logic and to do so
 we can define their behavior by implementing some of the remaining <code>Entity</code>
 methods according to our needs.</p>
-<p>As an example, <a href="https://en.wikipedia.org/wiki/Langton%27s_ant"target="_blank">Langton&rsquo;s ant</a>
+<p>As an example, <a href="https://en.wikipedia.org/wiki/Langton%27s_ant"target="_blank" rel="noopener noreferrer">Langton&rsquo;s ant</a>
+
 lends itself very well, because the number of entities involved is low and the
 rules that define their behaviors are simple. If you want to have a look at a
 complete example that uses <code>semeion</code> to implement Langton&rsquo;s ant, please have
-a look at the <a href="https://github.com/gliderkite/semeion"target="_blank">semeion repository examples</a>.</p>
+a look at the <a href="https://github.com/gliderkite/semeion"target="_blank" rel="noopener noreferrer">semeion repository examples</a>
+.</p>
 <p>As a reminder for this example, Langton&rsquo;s ant moves according to the rules below:</p>
 <ul>
 <li>At a white square, turn 90° clockwise, flip the color of the square, move
@@ -321,18 +328,23 @@ simple to use in Rust.</p>
 <p>Performance wise, I&rsquo;ve never had issues with the library, which also provides an
 optional <code>parallel</code> feature to run your simulations while exploiting multi-threading.
 Nevertheless, there are definitely more performant architectural patterns such as
-the <a href="https://en.wikipedia.org/wiki/Entity_component_system"target="_blank">Entity Component System</a>,
+the <a href="https://en.wikipedia.org/wiki/Entity_component_system"target="_blank" rel="noopener noreferrer">Entity Component System</a>
+,
 and if you find yourself in need of such performance, please have a look at other
-more mature libraries, like <a href="https://bevyengine.org/"target="_blank">Bevy</a> or
-<a href="https://amethyst.rs/"target="_blank">Amethyst</a>.</p>
+more mature libraries, like <a href="https://bevyengine.org/"target="_blank" rel="noopener noreferrer">Bevy</a>
+ or
+<a href="https://amethyst.rs/"target="_blank" rel="noopener noreferrer">Amethyst</a>
+.</p>
 <p>If you want to leave some feedback, or contribute to the project, please do so
 by opening an issue or a MR in the
-<a href="https://github.com/gliderkite/semeion"target="_blank">semeion repository</a>, I&rsquo;ll be glad to
+<a href="https://github.com/gliderkite/semeion"target="_blank" rel="noopener noreferrer">semeion repository</a>
+, I&rsquo;ll be glad to
 help or discuss it as the time allows it.</p>
-</article><section class="article author"><div class="details"><a class="item" href="https://github.com/gliderkite" target="_blank"><span class="iconfont icon-github"></span>&nbsp;gliderkite</a><a class="item" href="https://twitter.com/gliderkite" target="_blank"><span class="iconfont icon-twitter"></span>&nbsp;@gliderkite</a><a class="item" href="mailto:gliderkite@gmail.com" target="_blank"><span class="iconfont icon-email"></span>&nbsp;gliderkite@gmail.com</a></div>
-</section></div>
+</article><section class="article author"><div class="details"><a class="item" href="https://github.com/gliderkite" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-github"></span>&nbsp;gliderkite</a><a class="item" href="https://twitter.com/gliderkite" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-twitter"></span>&nbsp;@gliderkite</a><a class="item" href="mailto:gliderkite@gmail.com" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-email"></span>&nbsp;gliderkite@gmail.com</a></div>
+</section>
+</div>
 <div class="article bottom"><section class="article navigation"><p><a class="link" href="/posts/formicarium/"><span class="iconfont icon-article"></span>Formicarium</a></p></section></div></section><section id="footer"></section><script defer type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML" integrity="sha384-e/4/LvThKH1gwzXhdbY2AsjR3rm7LHWyhIG5C0jiRfn8AN2eTN5ILeztWw0H9jmN" crossorigin="anonymous"></script>
         <script
-            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script></body>
+            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script><script src="/js/hljs.min.0799348a91dce12c6be4a73f943cfe78f181f4e6f6ec35c4af0fca1de377879f77cfab03c30f03a174d675737b5a9314.js" integrity="sha384-B5k0ipHc4Sxr5Kc/lDz&#43;ePGB9Ob27DXErw/KHeN3h593z6sDww8DoXTWdXN7WpMU"></script><script>hljs.initHighlightingOnLoad();</script></body>
 
 </html>
