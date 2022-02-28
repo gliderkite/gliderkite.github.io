@@ -120,9 +120,9 @@ Benford&amp;rsquo;s law is.&lt;/p&gt;
 &lt;p&gt;The first thing to do is to &lt;a href=&#34;https://www.rust-lang.org/tools/install&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;install Rust&lt;/a&gt;
 .&lt;/p&gt;
 &lt;p&gt;Once we have installed Rust, we can check what is the version of the compiler:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ rustc --version
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ rustc --version
 rustc 1.47.0 (18bf6b4f0 2020-10-07)
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;If everything went well, we didn&amp;rsquo;t just install the Rust compiler, but we can now
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If everything went well, we didn&amp;rsquo;t just install the Rust compiler, but we can now
 also use &lt;a href=&#34;https://doc.rust-lang.org/cargo/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Cargo - The Rust package manager&lt;/a&gt;
 , which allows us to create, build,
 and run any project, as well as to download all the project&amp;rsquo;s dependencies.&lt;/p&gt;
@@ -132,19 +132,19 @@ The project there is organized in &lt;a href=&#34;https://doc.rust-lang.org/book
 , so that you can run any of
 the following chapters with (for example) the following command for the first
 chapter:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run --package chapter01
-&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;chapter-01---setting-up-the-project&#34;&gt;Chapter 01 - Setting up the Project&lt;/h2&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run --package chapter01
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;chapter-01---setting-up-the-project&#34;&gt;Chapter 01 - Setting up the Project&lt;/h2&gt;
 &lt;p&gt;Let&amp;rsquo;s create a new project called &lt;code&gt;benford&lt;/code&gt;:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo new benford
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Cargo will create a new folder with the following structure:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;benford
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo new benford
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Cargo will create a new folder with the following structure:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;benford
 ├── Cargo.toml
 ├── src
 │   ├── main.rs
 &lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The &lt;code&gt;Cargo.toml&lt;/code&gt; file, is a &lt;a href=&#34;https://en.wikipedia.org/wiki/TOML&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;TOML&lt;/a&gt;
  file, where we can specify our package
 name and version, and the project&amp;rsquo;s external dependencies (currently none):&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;package&lt;/span&gt;]
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;package&lt;/span&gt;]
 &lt;span style=&#34;color:#a6e22e&#34;&gt;name&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;benford&amp;#34;&lt;/span&gt;
 &lt;span style=&#34;color:#a6e22e&#34;&gt;version&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;0.1.0&amp;#34;&lt;/span&gt;
 &lt;span style=&#34;color:#a6e22e&#34;&gt;authors&lt;/span&gt; = [&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;gliderkite &amp;lt;gliderkite@gmail.com&amp;gt;&amp;#34;&lt;/span&gt;]
@@ -153,20 +153,20 @@ name and version, and the project&amp;rsquo;s external dependencies (currently n
 [&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;While &lt;code&gt;main.rs&lt;/code&gt; is the source code file that contains the entry point of our
 application:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
-    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Hello, world!&amp;#34;&lt;/span&gt;);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
+    println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Hello, world!&amp;#34;&lt;/span&gt;);
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Where &lt;code&gt;println!&lt;/code&gt; is just a &lt;a href=&#34;https://doc.rust-lang.org/book/ch19-06-macros.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;function-like macro&lt;/a&gt;
  that prints formatted
 strings to the standard output.&lt;/p&gt;
 &lt;p&gt;Let&amp;rsquo;s compile and run the project for the first time; we can build it with
 &lt;code&gt;cargo build&lt;/code&gt; or simply build and run with &lt;code&gt;cargo run&lt;/code&gt;&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
     Compiling benford v0.1.0
     Finished dev [unoptimized + debuginfo] target(s) in 0.15s
         Running `target/debug/benford`
 Hello, world!
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Another important command that we are going to use without mentioning throughout
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Another important command that we are going to use without mentioning throughout
 the whole post is &lt;a href=&#34;https://github.com/rust-lang/rustfmt&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;cargo fmt&lt;/code&gt;&lt;/a&gt;
 : a tool for automatically formatting Rust
 code according to style guidelines.&lt;/p&gt;
@@ -183,7 +183,7 @@ spreadsheets, so it&amp;rsquo;s easy to export into &lt;a href=&#34;https://en.w
 , and that is exactly the
 format we are going to use for our input. The content of the file (census.csv)
 looks like this:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-csv&#34; data-lang=&#34;csv&#34;&gt;City,Population
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code class=&#34;language-csv&#34; data-lang=&#34;csv&#34;&gt;City,Population
 Agliè,2608
 Airasca,3790
 Ala di Stura,435
@@ -208,7 +208,7 @@ named &lt;a href=&#34;https://crates.io/crates/csv&#34;target=&#34;_blank&#34; r
 .&lt;/p&gt;
 &lt;p&gt;To add a dependency to our project, we just need to add the dependency name, with
 the version we chose, to our list of dependencies in the &lt;code&gt;Cargo.toml&lt;/code&gt; file:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
 &lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;1.1.3&amp;#34;&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;But how do we actually know what types and functions are provided by this library,
 and how do we use them? This is were &lt;a href=&#34;https://docs.rs/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;docs.rs - The Rust documentation host&lt;/a&gt;
@@ -224,7 +224,7 @@ documentation, we can quickly find the example we need, which shows how the
 &lt;a href=&#34;https://docs.rs/csv/1.1.3/csv/struct.Reader.html#method.from_reader&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;csv::Reader::from_reader(reader: impl Read)&lt;/code&gt;&lt;/a&gt;
 
 method creates a new CSV parser for the given &lt;code&gt;reader&lt;/code&gt;:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; csv_reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(reader);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; csv_reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(reader);
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Notice how, even though Rust is a statically typed language, we didn&amp;rsquo;t have to
 specify the type of &lt;code&gt;csv_reader&lt;/code&gt;, since most of the times the compiler will
 be able to &lt;a href=&#34;https://en.wikipedia.org/wiki/Type_inference&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;infer the type&lt;/a&gt;
@@ -244,16 +244,16 @@ where we can search and find the &lt;a href=&#34;https://doc.rust-lang.org/std/f
  we were looking for&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
 &lt;p&gt;Let&amp;rsquo;s proceed to create the CSV reader that is going to be used to read
 and iterate over the census data:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::fs;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::fs;
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; dataset &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;census.csv&amp;#34;&lt;/span&gt;;
-    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Reading dataset from {}&amp;#34;&lt;/span&gt;, dataset);
+    println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Reading dataset from {}&amp;#34;&lt;/span&gt;, dataset);
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; file &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; fs::File::open(dataset).expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Cannot read dataset&amp;#34;&lt;/span&gt;);
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and if we compile&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; the project, we get:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo build
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo build
 warning: unused variable: `reader`
  --&amp;gt; src/main.rs:6:9
   |
@@ -261,13 +261,13 @@ warning: unused variable: `reader`
   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_reader`
   |
   = note: `#[warn(unused_variables)]` on by default
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;You have now met the compiler, the reason why many Rust developers talk about pair
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;You have now met the compiler, the reason why many Rust developers talk about pair
 programming when working with Rust: its warnings and error messages are extremely
 useful (and you will most likely encounter many thanks to the &lt;a href=&#34;https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;borrow checker&lt;/a&gt;
 &lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;).&lt;/p&gt;
 &lt;p&gt;One important thing to point out at this point is the &lt;code&gt;.expect()&lt;/code&gt; method we used
 when opening the file:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; file &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; fs::File::open(dataset).expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Cannot read dataset&amp;#34;&lt;/span&gt;);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; file &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; fs::File::open(dataset).expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Cannot read dataset&amp;#34;&lt;/span&gt;);
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The truth is that many operations can fail, and in Rust there are two main ways
 to handle errors:&lt;/p&gt;
 &lt;ul&gt;
@@ -286,10 +286,10 @@ for any reason, &lt;code&gt;.expect()&lt;/code&gt; will simply call internally &
 error message and terminate the program, otherwise it will &lt;em&gt;unwrap&lt;/em&gt; the content
 of the &lt;code&gt;Result::Ok(Type)&lt;/code&gt; variant (now stored in the variable &lt;code&gt;file&lt;/code&gt;). This is
 what happens for example if the census file doesn&amp;rsquo;t exist:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
-thread &#39;main&#39; panicked at &#39;Cannot read dataset: Os { code: 2, kind: NotFound, message: &amp;quot;No such file or directory&amp;quot; }&#39;, src/main.rs:5:40
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
+thread &amp;#39;main&amp;#39; panicked at &amp;#39;Cannot read dataset: Os { code: 2, kind: NotFound, message: &amp;#34;No such file or directory&amp;#34; }&amp;#39;, src/main.rs:5:40
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We will come back to show how to handle recoverable errors with &lt;code&gt;Result&lt;/code&gt; in a
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We will come back to show how to handle recoverable errors with &lt;code&gt;Result&lt;/code&gt; in a
 following chapter.&lt;/p&gt;
 &lt;p&gt;Now that we have a CSV reader, we can use it to iterate over all the
 records/towns in the file, and extract from each record the value representing
@@ -297,13 +297,13 @@ the population.&lt;/p&gt;
 &lt;p&gt;From the &lt;code&gt;csv&lt;/code&gt; library documentation, we can see how to iterate over all the records
 by using the &lt;a href=&#34;https://docs.rs/csv/1.1.3/csv/struct.Reader.html#method.records&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;csv::Reader::records()&lt;/code&gt;&lt;/a&gt;
  method:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
 
-println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Parsing CSV records&amp;#34;&lt;/span&gt;);
+println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Parsing CSV records&amp;#34;&lt;/span&gt;);
 &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
     &lt;span style=&#34;color:#75715e&#34;&gt;// record is a Result that we must unwrap before parsing its content
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
-    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, record);
+    println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, record);
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;You can see how each record is actually wrapped in a
 &lt;code&gt;Result&amp;lt;csv::StringRecord, csv::Error&amp;gt;&lt;/code&gt; (since there may be records with invalid
@@ -317,7 +317,7 @@ the one declared in the &lt;code&gt;for&lt;/code&gt; loop. This is possible beca
  (in this particular case the outer variable declared in
 the loop will be &lt;em&gt;shadowed&lt;/em&gt; by the inner variable declared within it).&lt;/p&gt;
 &lt;p&gt;However, the above code will not compile; let&amp;rsquo;s see why by looking at the error message:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;error[E0596]: cannot borrow `reader` as mutable, as it is not declared as mutable
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;error[E0596]: cannot borrow `reader` as mutable, as it is not declared as mutable
  --&amp;gt; src/main.rs:8:18
   |
 6 |     let reader = csv::Reader::from_reader(file);
@@ -333,7 +333,7 @@ the method needed to &lt;em&gt;immutably borrow&lt;/em&gt;, we would have found 
 and by default all declared variables in Rust are &lt;em&gt;immutable&lt;/em&gt;.&lt;/p&gt;
 &lt;p&gt;As the compiler is suggesting, we simply need to declare the &lt;code&gt;reader&lt;/code&gt; variable
 mutable by adding &lt;code&gt;mut&lt;/code&gt; in front of the variable name to fix our code:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We can now iterate over all the towns, but what exactly are we printing when
 using the macro &lt;code&gt;println!(&amp;quot;{:?}&amp;quot;, record)&lt;/code&gt;?&lt;/p&gt;
 &lt;p&gt;This is another important feature of Rust that enables easier debugging by
@@ -341,7 +341,7 @@ automatically implementing the debug string representation of a type, when
 deriving the &lt;a href=&#34;https://doc.rust-lang.org/std/fmt/trait.Debug.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Debug trait&lt;/a&gt;
 . As a classic example, suppose you have a &lt;code&gt;Point&lt;/code&gt;
 structure with integer (32 bits) abscissa and ordinate fields:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Point&lt;/span&gt; {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Point&lt;/span&gt; {
     x: &lt;span style=&#34;color:#66d9ef&#34;&gt;i32&lt;/span&gt;,
     y: &lt;span style=&#34;color:#66d9ef&#34;&gt;i32&lt;/span&gt;,
 }
@@ -351,35 +351,35 @@ structure with integer (32 bits) abscissa and ordinate fields:&lt;/p&gt;
 only thing you need to do is to derive the &lt;code&gt;Debug&lt;/code&gt; trait with a
 &lt;a href=&#34;https://doc.rust-lang.org/reference/procedural-macros.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;procedural derive macro&lt;/a&gt;
 , to be able to use the &lt;code&gt;{:?}&lt;/code&gt; syntax:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#[derive(Debug)]&lt;/span&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#[derive(Debug)]&lt;/span&gt;
 &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Point&lt;/span&gt; {
     x: &lt;span style=&#34;color:#66d9ef&#34;&gt;i32&lt;/span&gt;,
     y: &lt;span style=&#34;color:#66d9ef&#34;&gt;i32&lt;/span&gt;,
 }
 
-println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, origin);
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Point { x: 0, y: 0 }
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And you can also enable pretty-printing with a slightly different syntax:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:#?}&amp;#34;&lt;/span&gt;, origin);
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Point {
+println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, origin);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Point { x: 0, y: 0 }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And you can also enable pretty-printing with a slightly different syntax:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:#?}&amp;#34;&lt;/span&gt;, origin);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Point {
     x: 0,
     y: 0,
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Coming back to our example, we can finally start to see all the file records
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Coming back to our example, we can finally start to see all the file records
 being printed to the standard output when we run the project:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
 Parsing CSV records
-StringRecord([&amp;quot;Agliè&amp;quot;, &amp;quot;2608&amp;quot;])
-StringRecord([&amp;quot;Airasca&amp;quot;, &amp;quot;3790&amp;quot;])
-StringRecord([&amp;quot;Ala di Stura&amp;quot;, &amp;quot;435&amp;quot;])
-StringRecord([&amp;quot;Albiano d\&#39;Ivrea&amp;quot;, &amp;quot;1847&amp;quot;])
-StringRecord([&amp;quot;Alice Superiore&amp;quot;, &amp;quot;694&amp;quot;])
-StringRecord([&amp;quot;Almese&amp;quot;, &amp;quot;6173&amp;quot;])
-StringRecord([&amp;quot;Alpette&amp;quot;, &amp;quot;267&amp;quot;])
-StringRecord([&amp;quot;Alpignano&amp;quot;, &amp;quot;16817&amp;quot;])
-
-...
-&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;chapter-03---logging&#34;&gt;Chapter 03 - Logging&lt;/h2&gt;
+StringRecord([&amp;#34;Agliè&amp;#34;, &amp;#34;2608&amp;#34;])
+StringRecord([&amp;#34;Airasca&amp;#34;, &amp;#34;3790&amp;#34;])
+StringRecord([&amp;#34;Ala di Stura&amp;#34;, &amp;#34;435&amp;#34;])
+StringRecord([&amp;#34;Albiano d\&amp;#39;Ivrea&amp;#34;, &amp;#34;1847&amp;#34;])
+StringRecord([&amp;#34;Alice Superiore&amp;#34;, &amp;#34;694&amp;#34;])
+StringRecord([&amp;#34;Almese&amp;#34;, &amp;#34;6173&amp;#34;])
+StringRecord([&amp;#34;Alpette&amp;#34;, &amp;#34;267&amp;#34;])
+StringRecord([&amp;#34;Alpignano&amp;#34;, &amp;#34;16817&amp;#34;])
+&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&lt;/span&gt;...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;chapter-03---logging&#34;&gt;Chapter 03 - Logging&lt;/h2&gt;
 &lt;p&gt;We ended &lt;a href=&#34;#chapter-02---reading-the-dataset&#34;&gt;the second chapter&lt;/a&gt;
  by printing
 all the cities in the census file to the standard output, and that is quite a lot
@@ -397,14 +397,14 @@ respectively in the &lt;a href=&#34;https://docs.rs/log/0.4.11/log/&#34;target=&
 there are several other implementations that you are free to try out).&lt;/p&gt;
 &lt;p&gt;As we have done for the &lt;code&gt;csv&lt;/code&gt; library, the first thing to do is to import them
 as new dependencies in our &lt;code&gt;Cargo.toml&lt;/code&gt; file:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
 &lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;1.1.3&amp;#34;&lt;/span&gt;
 &lt;span style=&#34;color:#a6e22e&#34;&gt;env_logger&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;0.8.1&amp;#34;&lt;/span&gt;
 &lt;span style=&#34;color:#a6e22e&#34;&gt;log&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;0.4.11&amp;#34;&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Using a logger is relatively simple, we just need to initialize the logger
 implementation and then use the various log APIs provided by the facade
 according to the level we need (trace, debug, info, warn, or error):&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
     &lt;span style=&#34;color:#75715e&#34;&gt;// initialize the logger implementation
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    env_logger::init();
 
@@ -423,10 +423,10 @@ according to the level we need (trace, debug, info, warn, or error):&lt;/p&gt;
 &lt;code&gt;log::trace!&lt;/code&gt; macros according to the level of logging we find the most
 appropriate. And we can enable different level of logging by setting the
 environment variable &lt;code&gt;RUST_LOG&lt;/code&gt;, for example:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=info cargo run
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;info cargo run
 [2020-10-04T12:17:45Z INFO  benford] Reading dataset from census.csv
 [2020-10-04T12:17:45Z INFO  benford] Parsing CSV records
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;While setting &lt;code&gt;RUST_LOG=trace&lt;/code&gt; would also print all the file records.&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;While setting &lt;code&gt;RUST_LOG=trace&lt;/code&gt; would also print all the file records.&lt;/p&gt;
 &lt;h2 id=&#34;chapter-04---parsing-the-dataset&#34;&gt;Chapter 04 - Parsing the Dataset&lt;/h2&gt;
 &lt;p&gt;The next step involves extracting the information we need from each record (i.e.
 the population value) and building the frequency map of the leading digits.&lt;/p&gt;
@@ -436,7 +436,7 @@ the population value) and building the frequency map of the leading digits.&lt;/
 corresponds to the second column of our dataset. We can achieve this by using
 the &lt;a href=&#34;https://docs.rs/csv/1.1.3/csv/struct.StringRecord.html#method.get&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;csv::StringRecord::get()&lt;/code&gt;&lt;/a&gt;
  method:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; city &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.get(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;);
@@ -444,14 +444,14 @@ the &lt;a href=&#34;https://docs.rs/csv/1.1.3/csv/struct.StringRecord.html#metho
     log::trace&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?} population: {:?}&amp;#34;&lt;/span&gt;, city, population);
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And if we run the project, we&amp;rsquo;ll see something similar to:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=trace cargo run
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[TRACE] Some(&amp;quot;Agliè&amp;quot;) population: Some(&amp;quot;2608&amp;quot;)
-[TRACE] Some(&amp;quot;Airasca&amp;quot;) population: Some(&amp;quot;3790&amp;quot;)
-
-...
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;From this output, it looks like we are not just dealing with strings; in fact, as
+[TRACE] Some(&amp;#34;Agliè&amp;#34;) population: Some(&amp;#34;2608&amp;#34;)
+[TRACE] Some(&amp;#34;Airasca&amp;#34;) population: Some(&amp;#34;3790&amp;#34;)
+&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&lt;/span&gt;...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;From this output, it looks like we are not just dealing with strings; in fact, as
 you can see, these are wrapped in a type which &lt;code&gt;Debug&lt;/code&gt; representation is, for
 example, &lt;code&gt;Some(&amp;quot;Airasca&amp;quot;)&lt;/code&gt; or &lt;code&gt;Some(&amp;quot;3790&amp;quot;)&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;You are now meeting what is, with &lt;code&gt;Result&lt;/code&gt;, possibly the most important enum in
@@ -471,7 +471,7 @@ null references or null pointers).&lt;/p&gt;
 &lt;code&gt;Some(population)&lt;/code&gt; when the CSV record contains a second column, or &lt;code&gt;None&lt;/code&gt; when
 it doesn&amp;rsquo;t (which should never happen if our input is correct). To do so, we can
 use the Rust keyword &lt;code&gt;match&lt;/code&gt;:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record.get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) {
@@ -479,14 +479,14 @@ use the Rust keyword &lt;code&gt;match&lt;/code&gt;:&lt;/p&gt;
         None &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; log::warn&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;No population value!&amp;#34;&lt;/span&gt;),
     };
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=trace cargo run
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
 [TRACE] Population: 2608
 [TRACE] Population: 3790
-
-...
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We can now finally build the frequency map, where the keys of the map will be
+&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&lt;/span&gt;...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We can now finally build the frequency map, where the keys of the map will be
 all the possible digits $[1-9]$, while the values will be the frequency these
 digits appear as the first digit of the population values.&lt;/p&gt;
 &lt;p&gt;The only choice we need to make is if we want to deal with these numbers as
@@ -503,9 +503,9 @@ Fortunately, what we need to do is not too complex: we need to get the first dig
 of the population value, that is (being the population value a string), we need
 to extract its first character.&lt;/p&gt;
 &lt;p&gt;If we try with:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; digit &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; population[&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;];
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; digit &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; population[&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;];
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We would just get the following error:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;  --&amp;gt; src/main.rs:20:29
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;  --&amp;gt; src/main.rs:20:29
    |
 20 |                 let digit = population[0];
    |                             ^^^^^^^^^^^^^ string indices are ranges of `usize`
@@ -518,7 +518,7 @@ to extract its first character.&lt;/p&gt;
 with a nice explanation on why indexing strings is not possible, but also a
 couple of solutions that we can use to fix this problem. There is also a third
 option, which is semantically equivalent, and that&amp;rsquo;s what we are going to use:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// get the first character of the population (represented as string)
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// get the first character of the population (represented as string)
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; digit &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; population.chars().next();
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;a href=&#34;https://doc.rust-lang.org/std/iter/trait.Iterator.html#tymethod.next&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;If you look closely&lt;/a&gt;
 , you&amp;rsquo;ll see that &lt;code&gt;digit&lt;/code&gt; is not exactly a character, but
@@ -531,7 +531,7 @@ part of the logic into a separate function that, given an immutable reference to
 a valid record, would optionally return the first digit of the population value
 as character.&lt;/p&gt;
 &lt;p&gt;This is what a possible implementation could look like:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_first_digit&lt;/span&gt;(record: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;::StringRecord) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;char&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_first_digit&lt;/span&gt;(record: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;::StringRecord) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     log::trace&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Parsing record: {:?}&amp;#34;&lt;/span&gt;, record);
     &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record.get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) {
         Some(population) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; population.chars().next(),
@@ -547,7 +547,7 @@ utility methods we could use to make the implementation less verbose by replacin
 the pattern matching with the semantically equivalent &lt;a href=&#34;https://doc.rust-lang.org/std/option/enum.Option.html#method.and_then&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;Option::and_then&lt;/code&gt;&lt;/a&gt;
 
 combinator:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;record
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;record
     .get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
     .and_then(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;population&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; population.chars().next())
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If you are wondering about the syntax inside the &lt;code&gt;and_then&lt;/code&gt; combinator, this is
@@ -562,7 +562,7 @@ record contains invalid data, such as &lt;code&gt;abc-xyz&lt;/code&gt;, this met
 character &lt;code&gt;a&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;To solve this issue, we can simply chain another &lt;code&gt;Option&lt;/code&gt; combinator, to filter
 only valid characters:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;record
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;record
     .get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
     .and_then(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;population&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; population.chars().next())
     .filter(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;c&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; c.is_ascii_digit() &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;c &lt;span style=&#34;color:#f92672&#34;&gt;!=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;0&amp;#39;&lt;/span&gt;)
@@ -579,7 +579,7 @@ closure input &lt;code&gt;c&lt;/code&gt; is a reference to a character, and ther
  before being compared to another character.&lt;/p&gt;
 &lt;p&gt;Now we can match the &lt;code&gt;Option&lt;/code&gt; returned by this function in our loop, and we can
 do so by introducing an alternative but equivalent syntax to &lt;code&gt;match&lt;/code&gt;:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; Some(digit) &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; get_first_digit(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;record) {
@@ -588,16 +588,16 @@ do so by introducing an alternative but equivalent syntax to &lt;code&gt;match&l
         log::warn&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;No valid digit found in {:?}&amp;#34;&lt;/span&gt;, record);
     }
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=trace cargo run
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[TRACE] Parsing record: StringRecord([&amp;quot;Agliè&amp;quot;, &amp;quot;2608&amp;quot;])
-[TRACE] Found digit &#39;2&#39; in StringRecord([&amp;quot;Agliè&amp;quot;, &amp;quot;2608&amp;quot;])
-[TRACE] Parsing record: StringRecord([&amp;quot;Airasca&amp;quot;, &amp;quot;3790&amp;quot;])
-[TRACE] Found digit &#39;3&#39; in StringRecord([&amp;quot;Airasca&amp;quot;, &amp;quot;3790&amp;quot;])
-
-...
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The only missing part is to create the frequency map according to the digits
+[TRACE] Parsing record: StringRecord([&amp;#34;Agliè&amp;#34;, &amp;#34;2608&amp;#34;])
+[TRACE] Found digit &amp;#39;2&amp;#39; in StringRecord([&amp;#34;Agliè&amp;#34;, &amp;#34;2608&amp;#34;])
+[TRACE] Parsing record: StringRecord([&amp;#34;Airasca&amp;#34;, &amp;#34;3790&amp;#34;])
+[TRACE] Found digit &amp;#39;3&amp;#39; in StringRecord([&amp;#34;Airasca&amp;#34;, &amp;#34;3790&amp;#34;])
+&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&lt;/span&gt;...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The only missing part is to create the frequency map according to the digits
 found.&lt;/p&gt;
 &lt;p&gt;What we need is an associative array; for that, the obvious choice would
 be a &lt;a href=&#34;https://en.wikipedia.org/wiki/Hash_table&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;hash table&lt;/a&gt;
@@ -608,7 +608,7 @@ find a hash table implementation in the Rust standard library under the
 parse them (i.e. as characters), while the values will be integer values that
 correspond to how many times we found that leading digit in the records.&lt;/p&gt;
 &lt;p&gt;We can now proceed and fill up the frequency map:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::collections::HashMap;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::collections::HashMap;
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; frequency &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; HashMap::new();
 
@@ -635,27 +635,27 @@ representing how many times we already encountered it, and increment its
 value (&lt;code&gt;count&lt;/code&gt;) by 1.
 If the digit we are trying to use as key doesn&amp;rsquo;t belong yet to the frequency map,
 a new entry will be created with an initial value equal to 0.&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=debug cargo run
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;debug cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[DEBUG] Frequency: {&#39;2&#39;: 1395, &#39;7&#39;: 455, &#39;4&#39;: 745, &#39;1&#39;: 2486, &#39;9&#39;: 362, &#39;8&#39;: 449, &#39;6&#39;: 550, &#39;3&#39;: 1007, &#39;5&#39;: 643}
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Are these values starting to look familiar?&lt;/p&gt;
+[DEBUG] Frequency: {&amp;#39;2&amp;#39;: 1395, &amp;#39;7&amp;#39;: 455, &amp;#39;4&amp;#39;: 745, &amp;#39;1&amp;#39;: 2486, &amp;#39;9&amp;#39;: 362, &amp;#39;8&amp;#39;: 449, &amp;#39;6&amp;#39;: 550, &amp;#39;3&amp;#39;: 1007, &amp;#39;5&amp;#39;: 643}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Are these values starting to look familiar?&lt;/p&gt;
 &lt;h2 id=&#34;chapter-05---comparing-results&#34;&gt;Chapter 05 - Comparing Results&lt;/h2&gt;
 &lt;p&gt;We ended &lt;a href=&#34;#chapter-04---parsing-the-dataset&#34;&gt;the previous chapter&lt;/a&gt;
  with a
 frequency map of our digits that looks like this:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Frequency: {
-    &#39;2&#39;: 1395,
-    &#39;3&#39;: 1007,
-    &#39;5&#39;: 643,
-    &#39;6&#39;: 550,
-    &#39;4&#39;: 745,
-    &#39;8&#39;: 449,
-    &#39;9&#39;: 362,
-    &#39;1&#39;: 2486,
-    &#39;7&#39;: 455,
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Frequency: {
+    &amp;#39;2&amp;#39;: 1395,
+    &amp;#39;3&amp;#39;: 1007,
+    &amp;#39;5&amp;#39;: 643,
+    &amp;#39;6&amp;#39;: 550,
+    &amp;#39;4&amp;#39;: 745,
+    &amp;#39;8&amp;#39;: 449,
+    &amp;#39;9&amp;#39;: 362,
+    &amp;#39;1&amp;#39;: 2486,
+    &amp;#39;7&amp;#39;: 455,
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;But these are just the raw frequencies of the first digits; what we would like
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;But these are just the raw frequencies of the first digits; what we would like
 is instead the percentages in which these digits appear and, ideally, they would be
 sorted by digit from 1 to 9. There are many ways to achieve this; one way is
 to store our final results into a different data structure where keys are
@@ -664,8 +664,8 @@ sorted: in Rust, you can find this data structure under the &lt;a href=&#34;http
 &lt;p&gt;The keys of the new map are always going to be all the (sorted) digits $[1-9]$ as
 characters, while the values will be floating point numbers representing the
 percentage of how often they appear.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; total: &lt;span style=&#34;color:#66d9ef&#34;&gt;usize&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency.values().sum();
-&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; percentage: &lt;span style=&#34;color:#a6e22e&#34;&gt;BTreeMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;char, &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; total: &lt;span style=&#34;color:#66d9ef&#34;&gt;usize&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency.values().sum();
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; percentage: &lt;span style=&#34;color:#a6e22e&#34;&gt;BTreeMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency
     .into_iter()
     .map(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;(digit, count)&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; (digit, count &lt;span style=&#34;color:#66d9ef&#34;&gt;as&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;/&lt;/span&gt; total &lt;span style=&#34;color:#66d9ef&#34;&gt;as&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;))
     .collect();
@@ -678,18 +678,18 @@ for each of these, we keep the &lt;code&gt;digit&lt;/code&gt; as is while the va
 its respective percentage, to then finally collect all the new key-value pairs
 into the new data structure.&lt;/p&gt;
 &lt;p&gt;And, believe it or not, this is what we get:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Percentage: {
-    &#39;1&#39;: 0.31,
-    &#39;2&#39;: 0.17,
-    &#39;3&#39;: 0.12,
-    &#39;4&#39;: 0.09,
-    &#39;5&#39;: 0.08,
-    &#39;6&#39;: 0.07,
-    &#39;7&#39;: 0.06,
-    &#39;8&#39;: 0.06,
-    &#39;9&#39;: 0.04,
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Percentage: {
+    &amp;#39;1&amp;#39;: 0.31,
+    &amp;#39;2&amp;#39;: 0.17,
+    &amp;#39;3&amp;#39;: 0.12,
+    &amp;#39;4&amp;#39;: 0.09,
+    &amp;#39;5&amp;#39;: 0.08,
+    &amp;#39;6&amp;#39;: 0.07,
+    &amp;#39;7&amp;#39;: 0.06,
+    &amp;#39;8&amp;#39;: 0.06,
+    &amp;#39;9&amp;#39;: 0.04,
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Let&amp;rsquo;s compare it with the expected values (the blue bars represent the expected
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Let&amp;rsquo;s compare it with the expected values (the blue bars represent the expected
 values, while the red ones represent the results we got from the census file):&lt;/p&gt;
 &lt;p&gt;&lt;img  src=&#34;https://gliderkite.github.io/img/benford/probabilities-delta.png&#34;
         alt=&#34;delta&#34;/&gt;&lt;/p&gt;
@@ -708,7 +708,7 @@ logic, we can try to implement a different mechanism for error handling that
 would fit better the expectations of our application.&lt;/p&gt;
 &lt;p&gt;For example, let&amp;rsquo;s consider what happens when we have managed to open the file,
 but we can&amp;rsquo;t parse a specific record:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// record is a Result that we must unwrap before parsing its content
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// record is a Result that we must unwrap before parsing its content
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;With our current implementation, if the record is not valid, the program will
 terminate. Let&amp;rsquo;s assume instead that discarding an invalid record is a valid
@@ -718,23 +718,23 @@ choice.&lt;/p&gt;
  before we unwrap it with &lt;code&gt;.expect()&lt;/code&gt;, this means that we can
 pattern match it with its variants to write a semantically equivalent version of
 our code:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record {
     Ok(record) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; record,
-    Err(e) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record: {:?}&amp;#34;&lt;/span&gt;, e),
+    Err(e) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record: {:?}&amp;#34;&lt;/span&gt;, e),
 };
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And if our census file contained, for example, an invalid second record such as:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;City,Population
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;City,Population
 Agliè,2608,
 Airasca,3790, UNEXPECTED
 Ala di Stura,435
 
 ...
 &lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Our program would &lt;code&gt;panic!&lt;/code&gt; with the following error message:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;[INFO] Parsing CSV records
-thread &#39;main&#39; panicked at &#39;Invalid record: Error(UnequalLengths { pos: Some(Position { byte: 16, line: 2, record: 1 }), expected_len: 2, len: 3 })&#39;, src/main.rs:26:23
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;[INFO] Parsing CSV records
+thread &amp;#39;main&amp;#39; panicked at &amp;#39;Invalid record: Error(UnequalLengths { pos: Some(Position { byte: 16, line: 2, record: 1 }), expected_len: 2, len: 3 })&amp;#39;, src/main.rs:26:23
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Let&amp;rsquo;s just skip to the next record if the one we are currently at is not valid:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record {
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Let&amp;rsquo;s just skip to the next record if the one we are currently at is not valid:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record {
     Ok(record) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; record,
     Err(e) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; {
         log::warn&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Skipping invalid record: {:?}&amp;#34;&lt;/span&gt;, e);
@@ -751,7 +751,7 @@ type, here we can use the &lt;a href=&#34;https://doc.rust-lang.org/std/iter/tra
  method in combination
 with &lt;a href=&#34;https://doc.rust-lang.org/std/result/enum.Result.html#method.ok&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;Result::ok()&lt;/code&gt;&lt;/a&gt;
  to filter for valid records:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records().filter_map(Result::ok) {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records().filter_map(Result::ok) {
     &lt;span style=&#34;color:#75715e&#34;&gt;// parse valid record
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;}
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;chapter-07---command-line-arguments&#34;&gt;Chapter 07 - Command Line Arguments&lt;/h2&gt;
@@ -778,19 +778,19 @@ Fortunately, we have partially seen how to do this already with the
 &lt;a href=&#34;https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.nth&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;Iterator::nth()&lt;/code&gt; method&lt;/a&gt;
  that returns an &lt;code&gt;Option&lt;/code&gt; with &lt;code&gt;Some(Type)&lt;/code&gt; if the
 item in position &lt;em&gt;nth&lt;/em&gt; exists (otherwise returns &lt;code&gt;None&lt;/code&gt;):&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::env;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::env;
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; dataset &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; env::args().nth(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) {
     Some(path) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; path,
-    _ &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;The path of the census file must be specified&amp;#34;&lt;/span&gt;),
+    _ &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;The path of the census file must be specified&amp;#34;&lt;/span&gt;),
 };
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;As a final note, the underscore &lt;code&gt;_&lt;/code&gt; you see in the above &lt;code&gt;match&lt;/code&gt; is an identifier
 that can be used to match &lt;em&gt;anything else&lt;/em&gt; (i.e. any other possible enum variant),
 which, in the case of a &lt;code&gt;Option&lt;/code&gt; enum, is equivalent to writing &lt;code&gt;None&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;To run your new implementation, you can pass a command line argument to your binary
 via Cargo with:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run -- census.csv
-&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run -- census.csv
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
 &lt;p&gt;We&amp;rsquo;ve covered a lot together, and obviously there would be a lot more to cover
 (for that I suggest to have a look at the &lt;a href=&#34;https://doc.rust-lang.org/book/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Rust Book&lt;/a&gt;
 ), but in the end we&amp;rsquo;ve
@@ -798,7 +798,7 @@ managed to complete a nice implementation to show the &lt;em&gt;weirdness&lt;/em
 in less than 50 lines of code.&lt;/p&gt;
 &lt;p&gt;I leave you with the full code, so that you can have a single place where to
 review everything we&amp;rsquo;ve seen so far.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::{
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::{
     collections::{BTreeMap, HashMap},
     env, fs,
 };
@@ -808,7 +808,7 @@ review everything we&amp;rsquo;ve seen so far.&lt;/p&gt;
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; dataset &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; env::args().nth(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) {
         Some(path) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; path,
-        _ &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;The path of the census file must be specified&amp;#34;&lt;/span&gt;),
+        _ &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;The path of the census file must be specified&amp;#34;&lt;/span&gt;),
     };
 
     log::info&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Reading dataset from {}&amp;#34;&lt;/span&gt;, dataset);
@@ -830,14 +830,14 @@ review everything we&amp;rsquo;ve seen so far.&lt;/p&gt;
     log::debug&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Frequency: {:?}&amp;#34;&lt;/span&gt;, frequency);
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; total: &lt;span style=&#34;color:#66d9ef&#34;&gt;usize&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency.values().sum();
-    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; percentage: &lt;span style=&#34;color:#a6e22e&#34;&gt;BTreeMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;char, &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; percentage: &lt;span style=&#34;color:#a6e22e&#34;&gt;BTreeMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency
         .into_iter()
         .map(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;(digit, count)&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; (digit, count &lt;span style=&#34;color:#66d9ef&#34;&gt;as&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;/&lt;/span&gt; total &lt;span style=&#34;color:#66d9ef&#34;&gt;as&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;))
         .collect();
     log::info&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Percentage: {:#.2?}&amp;#34;&lt;/span&gt;, percentage);
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_first_digit&lt;/span&gt;(record: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;::StringRecord) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;char&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_first_digit&lt;/span&gt;(record: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;::StringRecord) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     log::trace&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Parsing record: {:?}&amp;#34;&lt;/span&gt;, record);
     record
         .get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
@@ -885,18 +885,18 @@ make use of any of the available alternatives?&lt;/li&gt;
 &lt;ol&gt;
 &lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;Please note that the reason why this law seems to yield such accurate results
-is, although quite interesting, out of the scope of this post. &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+is, although quite interesting, out of the scope of this post.&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;By default &lt;code&gt;cargo build&lt;/code&gt; will compile your project in Debug mode (dev
 profile), you can enable optimizations and compile it in Release with
 &lt;code&gt;cargo build --release&lt;/code&gt;. You can go even further and customize your builds with
 specific &lt;a href=&#34;https://doc.rust-lang.org/book/ch14-01-release-profiles.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;profile settings&lt;/a&gt;
- in your &lt;code&gt;Cargo.toml&lt;/code&gt;. &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+ in your &lt;code&gt;Cargo.toml&lt;/code&gt;.&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;If you want to know what are the traits that are implemented for a specific
-type, just look for the &lt;code&gt;Trait Implementations&lt;/code&gt; section in the type documentation. &lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+type, just look for the &lt;code&gt;Trait Implementations&lt;/code&gt; section in the type documentation.&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;When the size of your project increases, the Rust compiler starts to become
@@ -904,18 +904,18 @@ slower and slower; if you just need to check whether your code is correct withou
 actually producing an executable you can use &lt;code&gt;cargo check&lt;/code&gt; instead of using
 &lt;code&gt;cargo build&lt;/code&gt;, or (if you want even more useful suggestions from the compiler)
 try using &lt;a href=&#34;https://github.com/rust-lang/rust-clippy&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;clippy&lt;/a&gt;
- with &lt;code&gt;cargo clippy&lt;/code&gt;. &lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+ with &lt;code&gt;cargo clippy&lt;/code&gt;.&amp;#160;&lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:5&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;The borrow checker is out of the scope of this post; for now you just need to
 know that is thanks to the borrow checker that the Rust compiler can prevent
 &lt;a href=&#34;https://en.wikipedia.org/wiki/Race_condition#Data_race&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;data races&lt;/a&gt;
  (and consequent &lt;a href=&#34;https://en.wikipedia.org/wiki/Undefined_behavior&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;undefined behavior&lt;/a&gt;
-) at &lt;strong&gt;compile time&lt;/strong&gt;. &lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+) at &lt;strong&gt;compile time&lt;/strong&gt;.&amp;#160;&lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:6&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;Dependency management is &lt;a href=&#34;https://en.wikipedia.org/wiki/Dependency_hell&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;very, very hard&lt;/a&gt;
-. &lt;a href=&#34;#fnref:6&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+.&amp;#160;&lt;a href=&#34;#fnref:6&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/section&gt;
@@ -994,7 +994,7 @@ than linearly as the number of ants increases, showing that even the most basic
 forms of &lt;em&gt;swarm intelligence&lt;/em&gt; can give significant advantages when multiple
 organisms work together.&lt;/p&gt;
 &lt;p&gt;This is what the main loop of the simulation looks like:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; formicarium::&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; formicarium::&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;;
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; conf &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; game::Conf::parse(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;conf.json&amp;#34;&lt;/span&gt;)&lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt;;
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; context &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; game::Context::new(conf);
@@ -1003,11 +1003,11 @@ organisms work together.&lt;/p&gt;
 &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;state.is_simulation_over() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; generation &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; state.env.nextgen()&lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt;;
     &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; generation &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; MAX_GENERATIONS_COUNT {
-        panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Timeout!&amp;#34;&lt;/span&gt;);
+        panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Timeout!&amp;#34;&lt;/span&gt;);
     }
 }
 
-println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Simulation over after {} generations&amp;#34;&lt;/span&gt;, state.env.generation());
+println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Simulation over after {} generations&amp;#34;&lt;/span&gt;, state.env.generation());
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;† If you want to know more about &lt;code&gt;semeion&lt;/code&gt;, please have a look at
 &lt;a href=&#34;https://gliderkite.github.io/posts/semeion&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;this post&lt;/a&gt;
 .&lt;/p&gt;
@@ -1061,9 +1061,9 @@ the other ants will continue in their search for other morsels.&lt;/p&gt;
 first thing to do is to &lt;a href=&#34;https://www.rust-lang.org/tools/install&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;install Rust&lt;/a&gt;
 ,
 clone the repository&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;git clone https://github.com/gliderkite/formicarium.git
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;git clone https://github.com/gliderkite/formicarium.git
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and finally run with:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;cargo run --release -- conf.json
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;cargo run --release -- conf.json
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;where the last argument is the path to the configuration file that you are free
 to edit to see how different parameters can affect the behavior of the ants.&lt;/p&gt;
 &lt;p&gt;&lt;img  src=&#34;https://gliderkite.github.io/img/formicarium/sim.gif&#34;
@@ -1073,7 +1073,7 @@ to edit to see how different parameters can affect the behavior of the ants.&lt;
 &lt;li&gt;The dimension of the environment (as the size in number of columns and rows).&lt;/li&gt;
 &lt;li&gt;The location of the nest.&lt;/li&gt;
 &lt;li&gt;The number of ants.&lt;/li&gt;
-&lt;li&gt;The ants&amp;rsquo; memory span (as number of previous locations they can remember).&lt;/li&gt;
+&lt;li&gt;The ants&#39; memory span (as number of previous locations they can remember).&lt;/li&gt;
 &lt;li&gt;The quantity of pheromone the ants can leave, expressed by the initial quantity
 that gets reset every time the ant reaches its target, and by the amount
 the pheromone left decreases at each step (the farthest from the origin
@@ -1174,7 +1174,7 @@ according to their lifetime. Only after all the entities finish their task
 &lt;p&gt;The idea is to initialize the &lt;code&gt;Environment&lt;/code&gt; with a set of entities that
 represent the initial population, to then let the engine move forward to the
 next generation until the simulation is over:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{Environment, Error, Size};
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{Environment, Error, Size};
 
 &lt;span style=&#34;color:#e6db74&#34;&gt;/// The width the environment.
 &lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; WIDTH: &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;800.0&lt;/span&gt;;
@@ -1196,11 +1196,11 @@ next generation until the simulation is over:&lt;/p&gt;
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;is_simulation_over() {
         &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; env.nextgen()&lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; MAX_GENERATIONS_COUNT {
-            panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Timeout!&amp;#34;&lt;/span&gt;);
+            panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Timeout!&amp;#34;&lt;/span&gt;);
         }
     }
 
-    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Simulation over after {} generations&amp;#34;&lt;/span&gt;, env.generation());
+    println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Simulation over after {} generations&amp;#34;&lt;/span&gt;, env.generation());
     Ok(())
 }
 
@@ -1254,7 +1254,7 @@ context type.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Now that we have most of the &lt;code&gt;Entity&lt;/code&gt; information, we can start by defining a new
 entity:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity};
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity};
 
 &lt;span style=&#34;color:#e6db74&#34;&gt;/// The simulation will not draw any graphics for now.
 &lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;GraphicsContext&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; ();
@@ -1278,7 +1278,7 @@ entity:&lt;/p&gt;
     }
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Ant {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Ant {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Kind&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; EntityKind;
     &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Context&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; GraphicsContext;
 
@@ -1295,7 +1295,7 @@ entity:&lt;/p&gt;
     }
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And now we can initialize the environment with our entity:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; env &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Environment::new(dimensions);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; env &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Environment::new(dimensions);
 env.insert(Box::new(Ant::new(rand::random(), dimension.center())));
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The only thing to point out for now is the presence of that lifetime &lt;code&gt;&#39;a&lt;/code&gt;, which
 needs to be specified when implementing the &lt;code&gt;Entity&lt;/code&gt; trait, since it will allow
@@ -1327,7 +1327,7 @@ encode the black square as the presence of a &lt;code&gt;Cell&lt;/code&gt; in th
 square will be instead encoded by its absence (where &lt;code&gt;Cell&lt;/code&gt;s are created by
 the &lt;code&gt;Ant&lt;/code&gt; by releasing its &lt;code&gt;Offspring&lt;/code&gt; into the environment, and can be removed
 by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity, Lifespan, Location};
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity, Lifespan, Location};
 
 &lt;span style=&#34;color:#75715e&#34;&gt;#[derive(PartialEq, PartialOrd, Eq, Ord)]&lt;/span&gt;
 &lt;span style=&#34;color:#66d9ef&#34;&gt;enum&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;EntityKind&lt;/span&gt; {
@@ -1353,7 +1353,7 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
     }
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Cell {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Cell {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Kind&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; EntityKind;
     &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Context&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; GraphicsContext;
 
@@ -1380,16 +1380,16 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Now that we have defined the &lt;code&gt;Cell&lt;/code&gt; entity, we can proceed by implementing the
 &lt;code&gt;Ant&lt;/code&gt; behavior:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity, Lifespan, Location, Neighborhood, Offspring, Scope};
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity, Lifespan, Location, Neighborhood, Offspring, Scope};
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Ant&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Ant&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     id: &lt;span style=&#34;color:#a6e22e&#34;&gt;entity&lt;/span&gt;::Id,
     location: &lt;span style=&#34;color:#a6e22e&#34;&gt;Location&lt;/span&gt;,
     &lt;span style=&#34;color:#75715e&#34;&gt;// the Ant offspring can contain a new Black cell
-&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    offspring: &lt;span style=&#34;color:#a6e22e&#34;&gt;Offspring&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;, EntityKind, GraphicsContext&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;,
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    offspring: &lt;span style=&#34;color:#a6e22e&#34;&gt;Offspring&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;, EntityKind, GraphicsContext&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;,
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Ant&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Ant&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;new&lt;/span&gt;(id: &lt;span style=&#34;color:#a6e22e&#34;&gt;entity&lt;/span&gt;::Id, location: &lt;span style=&#34;color:#a6e22e&#34;&gt;impl&lt;/span&gt; Into&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Location&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Self&lt;/span&gt; {
         Self {
             id,
@@ -1399,7 +1399,7 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
     }
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Ant&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Ant&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;lifespan&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;self) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Lifespan&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
         &lt;span style=&#34;color:#75715e&#34;&gt;// The lifespan of the Ant is infinite.
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        Some(Lifespan::Immortal)
@@ -1428,7 +1428,7 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
         &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; Some(black_cell) &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; cell {
             &lt;span style=&#34;color:#75715e&#34;&gt;// if the cell is BLACK, we flip its color by &amp;#34;killing&amp;#34; the
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            &lt;span style=&#34;color:#75715e&#34;&gt;// entity reducing its lifespan to 0 and move left
-&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            debug_assert_eq&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(black_cell.location(), self.location());
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            debug_assert_eq!(black_cell.location(), self.location());
             &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; lifespan &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; black_cell.lifespan_mut().unwrap();
             lifespan.clear();
 
@@ -1447,7 +1447,7 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
         Ok(())
     }
 
-    &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;offspring&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; self) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Offspring&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;, Self::Kind, Self::Context&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;offspring&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; self) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Offspring&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;, Self::Kind, Self::Context&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; {
         &lt;span style=&#34;color:#75715e&#34;&gt;// release the offspring (if any) into the environment
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        Some(self.offspring.drain())
     }
@@ -1571,6 +1571,24 @@ help or discuss it as the time allows it.&lt;/p&gt;
 &lt;p&gt;This project compares the behaviour and performance of two solutions (in Rust and C++) to a simple graph problem, called the shortcut problem.&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
+</description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>https://gliderkite.github.io/microscopy/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://gliderkite.github.io/microscopy/</guid>
+      <description>&lt;h1 id=&#34;microscopy&#34;&gt;Microscopy&lt;/h1&gt;
+&lt;h4 id=&#34;cyclopoidahttpsenwikipediaorgwikicyclopoida---400x-aquarium-water-feb-2022&#34;&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/Cyclopoida&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Cyclopoida&lt;/a&gt;
+ - 400x Aquarium Water (Feb. 2022)&lt;/h4&gt;
+&lt;p&gt;&lt;img  src=&#34;https://gliderkite.github.io/img/microscopy/cyclopoida.jpg&#34;
+        alt=&#34;Cyclopoida&#34;/&gt;&lt;/p&gt;
+&lt;h4 id=&#34;aeolosomahttpsenwikipediaorgwikiaeolosoma---400x-aquarium-water-feb-2022&#34;&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/Aeolosoma&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Aeolosoma&lt;/a&gt;
+ - 400x Aquarium Water (Feb. 2022)&lt;/h4&gt;
+&lt;p&gt;&lt;img  src=&#34;https://gliderkite.github.io/img/microscopy/aeolosoma.jpg&#34;
+        alt=&#34;Aeolosoma&#34;/&gt;&lt;/p&gt;
 </description>
     </item>
     

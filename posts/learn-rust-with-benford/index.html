@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.74.3" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.92.2" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Learn Rust With Benford&#39;s Law&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.fbccb1acab1cdfa1a69b4dacd7cf183c9bdb0cf812dd8d010803c1aabe273fcf9060d58a9c009152ede2f04dc6b5a2fc.css" integrity="sha384-&#43;8yxrKsc36Gmm02s188YPJvbDPgS3Y0BCAPBqr4nP8&#43;QYNWKnACRUu3i8E3GtaL8"><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>Learn Rust With Benford&#39;s Law&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.05adfbdec17818142952367a754b25ac0e4ab7ab4c98e11d70e8f2ee5cd969eeb6278f829564b3a6bbf1b6d5a383aba9.css" integrity="sha384-Ba373sF4GBQpUjZ6dUslrA5Kt6tMmOEdcOjy7lzZae62J4&#43;ClWSzprvxttWjg6up"><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Learn Rust With Benford&#39;s Law" /><body><section id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><img class="site logo" src="/img/logo.png" alt /><span class="site name">gliderkite.io</span></a></span>
-        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/about">About</a></nav></div></span></div></section><section id="content"><div class="article-container"><section class="article header">
-    <h1 class="article title">Learn Rust With Benford's Law</h1><p class="article date">Oct 17, 2020<span class="reading-time"> • 29 minutes to read</span></p></section><article class="article markdown-body"><p>When was the last time you read anything containing a significant amount of
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/microscopy">Microscopy</a><a class="nav item" href="/about">About</a></nav></div></span></div></section><section id="content"><div class="article-container"><section class="article header">
+    <h1 class="article title">Learn Rust With Benford's Law</h1><p class="article date">Oct 17, 2020<span class="lastmod"> • edited Feb 27, 2022</span><span class="reading-time"> • 29 minutes to read</span></p></section><article class="article markdown-body"><p>When was the last time you read anything containing a significant amount of
 non-randomly generated numbers?</p>
 <p>What if I told you that the first digits of those numbers follow a well
 defined frequency distribution, and that it would be possible to predict the
@@ -109,9 +109,9 @@ Benford&rsquo;s law is.</p>
 <p>The first thing to do is to <a href="https://www.rust-lang.org/tools/install"target="_blank" rel="noopener noreferrer">install Rust</a>
 .</p>
 <p>Once we have installed Rust, we can check what is the version of the compiler:</p>
-<pre><code class="language-console" data-lang="console">$ rustc --version
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ rustc --version
 rustc 1.47.0 (18bf6b4f0 2020-10-07)
-</code></pre><p>If everything went well, we didn&rsquo;t just install the Rust compiler, but we can now
+</code></pre></div><p>If everything went well, we didn&rsquo;t just install the Rust compiler, but we can now
 also use <a href="https://doc.rust-lang.org/cargo/"target="_blank" rel="noopener noreferrer">Cargo - The Rust package manager</a>
 , which allows us to create, build,
 and run any project, as well as to download all the project&rsquo;s dependencies.</p>
@@ -121,19 +121,19 @@ The project there is organized in <a href="https://doc.rust-lang.org/book/ch14-0
 , so that you can run any of
 the following chapters with (for example) the following command for the first
 chapter:</p>
-<pre><code class="language-console" data-lang="console">$ cargo run --package chapter01
-</code></pre><h2 id="chapter-01---setting-up-the-project">Chapter 01 - Setting up the Project</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ cargo run --package chapter01
+</code></pre></div><h2 id="chapter-01---setting-up-the-project">Chapter 01 - Setting up the Project</h2>
 <p>Let&rsquo;s create a new project called <code>benford</code>:</p>
-<pre><code class="language-console" data-lang="console">$ cargo new benford
-</code></pre><p>Cargo will create a new folder with the following structure:</p>
-<pre><code>benford
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ cargo new benford
+</code></pre></div><p>Cargo will create a new folder with the following structure:</p>
+<pre tabindex="0"><code>benford
 ├── Cargo.toml
 ├── src
 │   ├── main.rs
 </code></pre><p>The <code>Cargo.toml</code> file, is a <a href="https://en.wikipedia.org/wiki/TOML"target="_blank" rel="noopener noreferrer">TOML</a>
  file, where we can specify our package
 name and version, and the project&rsquo;s external dependencies (currently none):</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-toml" data-lang="toml">[<span style="color:#a6e22e">package</span>]
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-toml" data-lang="toml">[<span style="color:#a6e22e">package</span>]
 <span style="color:#a6e22e">name</span> = <span style="color:#e6db74">&#34;benford&#34;</span>
 <span style="color:#a6e22e">version</span> = <span style="color:#e6db74">&#34;0.1.0&#34;</span>
 <span style="color:#a6e22e">authors</span> = [<span style="color:#e6db74">&#34;gliderkite &lt;gliderkite@gmail.com&gt;&#34;</span>]
@@ -142,20 +142,20 @@ name and version, and the project&rsquo;s external dependencies (currently none)
 [<span style="color:#a6e22e">dependencies</span>]
 </code></pre></div><p>While <code>main.rs</code> is the source code file that contains the entry point of our
 application:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">main</span>() {
-    println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Hello, world!&#34;</span>);
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">main</span>() {
+    println!(<span style="color:#e6db74">&#34;Hello, world!&#34;</span>);
 }
 </code></pre></div><p>Where <code>println!</code> is just a <a href="https://doc.rust-lang.org/book/ch19-06-macros.html"target="_blank" rel="noopener noreferrer">function-like macro</a>
  that prints formatted
 strings to the standard output.</p>
 <p>Let&rsquo;s compile and run the project for the first time; we can build it with
 <code>cargo build</code> or simply build and run with <code>cargo run</code><sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>:</p>
-<pre><code class="language-console" data-lang="console">$ cargo run
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ cargo run
     Compiling benford v0.1.0
     Finished dev [unoptimized + debuginfo] target(s) in 0.15s
         Running `target/debug/benford`
 Hello, world!
-</code></pre><p>Another important command that we are going to use without mentioning throughout
+</code></pre></div><p>Another important command that we are going to use without mentioning throughout
 the whole post is <a href="https://github.com/rust-lang/rustfmt"target="_blank" rel="noopener noreferrer"><code>cargo fmt</code></a>
 : a tool for automatically formatting Rust
 code according to style guidelines.</p>
@@ -172,7 +172,7 @@ spreadsheets, so it&rsquo;s easy to export into <a href="https://en.wikipedia.or
 , and that is exactly the
 format we are going to use for our input. The content of the file (census.csv)
 looks like this:</p>
-<pre><code class="language-csv" data-lang="csv">City,Population
+<pre tabindex="0"><code class="language-csv" data-lang="csv">City,Population
 Agliè,2608
 Airasca,3790
 Ala di Stura,435
@@ -197,7 +197,7 @@ named <a href="https://crates.io/crates/csv"target="_blank" rel="noopener norefe
 .</p>
 <p>To add a dependency to our project, we just need to add the dependency name, with
 the version we chose, to our list of dependencies in the <code>Cargo.toml</code> file:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-toml" data-lang="toml">[<span style="color:#a6e22e">dependencies</span>]
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-toml" data-lang="toml">[<span style="color:#a6e22e">dependencies</span>]
 <span style="color:#a6e22e">csv</span> = <span style="color:#e6db74">&#34;1.1.3&#34;</span>
 </code></pre></div><p>But how do we actually know what types and functions are provided by this library,
 and how do we use them? This is were <a href="https://docs.rs/"target="_blank" rel="noopener noreferrer">docs.rs - The Rust documentation host</a>
@@ -213,7 +213,7 @@ documentation, we can quickly find the example we need, which shows how the
 <a href="https://docs.rs/csv/1.1.3/csv/struct.Reader.html#method.from_reader"target="_blank" rel="noopener noreferrer"><code>csv::Reader::from_reader(reader: impl Read)</code></a>
 
 method creates a new CSV parser for the given <code>reader</code>:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> csv_reader <span style="color:#f92672">=</span> csv::Reader::from_reader(reader);
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> csv_reader <span style="color:#f92672">=</span> csv::Reader::from_reader(reader);
 </code></pre></div><p>Notice how, even though Rust is a statically typed language, we didn&rsquo;t have to
 specify the type of <code>csv_reader</code>, since most of the times the compiler will
 be able to <a href="https://en.wikipedia.org/wiki/Type_inference"target="_blank" rel="noopener noreferrer">infer the type</a>
@@ -233,16 +233,16 @@ where we can search and find the <a href="https://doc.rust-lang.org/std/fs/struc
  we were looking for<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>.</p>
 <p>Let&rsquo;s proceed to create the CSV reader that is going to be used to read
 and iterate over the census data:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::fs;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::fs;
 
 <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">main</span>() {
     <span style="color:#66d9ef">let</span> dataset <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;census.csv&#34;</span>;
-    println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Reading dataset from {}&#34;</span>, dataset);
+    println!(<span style="color:#e6db74">&#34;Reading dataset from {}&#34;</span>, dataset);
     <span style="color:#66d9ef">let</span> file <span style="color:#f92672">=</span> fs::File::open(dataset).expect(<span style="color:#e6db74">&#34;Cannot read dataset&#34;</span>);
     <span style="color:#66d9ef">let</span> reader <span style="color:#f92672">=</span> csv::Reader::from_reader(file);
 }
 </code></pre></div><p>and if we compile<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup> the project, we get:</p>
-<pre><code class="language-console" data-lang="console">$ cargo build
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ cargo build
 warning: unused variable: `reader`
  --&gt; src/main.rs:6:9
   |
@@ -250,13 +250,13 @@ warning: unused variable: `reader`
   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_reader`
   |
   = note: `#[warn(unused_variables)]` on by default
-</code></pre><p>You have now met the compiler, the reason why many Rust developers talk about pair
+</code></pre></div><p>You have now met the compiler, the reason why many Rust developers talk about pair
 programming when working with Rust: its warnings and error messages are extremely
 useful (and you will most likely encounter many thanks to the <a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html"target="_blank" rel="noopener noreferrer">borrow checker</a>
 <sup id="fnref:5"><a href="#fn:5" class="footnote-ref" role="doc-noteref">5</a></sup>).</p>
 <p>One important thing to point out at this point is the <code>.expect()</code> method we used
 when opening the file:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> file <span style="color:#f92672">=</span> fs::File::open(dataset).expect(<span style="color:#e6db74">&#34;Cannot read dataset&#34;</span>);
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> file <span style="color:#f92672">=</span> fs::File::open(dataset).expect(<span style="color:#e6db74">&#34;Cannot read dataset&#34;</span>);
 </code></pre></div><p>The truth is that many operations can fail, and in Rust there are two main ways
 to handle errors:</p>
 <ul>
@@ -275,10 +275,10 @@ for any reason, <code>.expect()</code> will simply call internally <code>panic!<
 error message and terminate the program, otherwise it will <em>unwrap</em> the content
 of the <code>Result::Ok(Type)</code> variant (now stored in the variable <code>file</code>). This is
 what happens for example if the census file doesn&rsquo;t exist:</p>
-<pre><code class="language-console" data-lang="console">$ cargo run
-thread 'main' panicked at 'Cannot read dataset: Os { code: 2, kind: NotFound, message: &quot;No such file or directory&quot; }', src/main.rs:5:40
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ cargo run
+thread &#39;main&#39; panicked at &#39;Cannot read dataset: Os { code: 2, kind: NotFound, message: &#34;No such file or directory&#34; }&#39;, src/main.rs:5:40
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-</code></pre><p>We will come back to show how to handle recoverable errors with <code>Result</code> in a
+</code></pre></div><p>We will come back to show how to handle recoverable errors with <code>Result</code> in a
 following chapter.</p>
 <p>Now that we have a CSV reader, we can use it to iterate over all the
 records/towns in the file, and extract from each record the value representing
@@ -286,13 +286,13 @@ the population.</p>
 <p>From the <code>csv</code> library documentation, we can see how to iterate over all the records
 by using the <a href="https://docs.rs/csv/1.1.3/csv/struct.Reader.html#method.records"target="_blank" rel="noopener noreferrer"><code>csv::Reader::records()</code></a>
  method:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> reader <span style="color:#f92672">=</span> csv::Reader::from_reader(file);
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> reader <span style="color:#f92672">=</span> csv::Reader::from_reader(file);
 
-println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Parsing CSV records&#34;</span>);
+println!(<span style="color:#e6db74">&#34;Parsing CSV records&#34;</span>);
 <span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
     <span style="color:#75715e">// record is a Result that we must unwrap before parsing its content
 </span><span style="color:#75715e"></span>    <span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> record.expect(<span style="color:#e6db74">&#34;Invalid record&#34;</span>);
-    println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, record);
+    println!(<span style="color:#e6db74">&#34;{:?}&#34;</span>, record);
 }
 </code></pre></div><p>You can see how each record is actually wrapped in a
 <code>Result&lt;csv::StringRecord, csv::Error&gt;</code> (since there may be records with invalid
@@ -306,7 +306,7 @@ the one declared in the <code>for</code> loop. This is possible because Rust all
  (in this particular case the outer variable declared in
 the loop will be <em>shadowed</em> by the inner variable declared within it).</p>
 <p>However, the above code will not compile; let&rsquo;s see why by looking at the error message:</p>
-<pre><code>error[E0596]: cannot borrow `reader` as mutable, as it is not declared as mutable
+<pre tabindex="0"><code>error[E0596]: cannot borrow `reader` as mutable, as it is not declared as mutable
  --&gt; src/main.rs:8:18
   |
 6 |     let reader = csv::Reader::from_reader(file);
@@ -322,7 +322,7 @@ the method needed to <em>immutably borrow</em>, we would have found it written a
 and by default all declared variables in Rust are <em>immutable</em>.</p>
 <p>As the compiler is suggesting, we simply need to declare the <code>reader</code> variable
 mutable by adding <code>mut</code> in front of the variable name to fix our code:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> reader <span style="color:#f92672">=</span> csv::Reader::from_reader(file);
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> reader <span style="color:#f92672">=</span> csv::Reader::from_reader(file);
 </code></pre></div><p>We can now iterate over all the towns, but what exactly are we printing when
 using the macro <code>println!(&quot;{:?}&quot;, record)</code>?</p>
 <p>This is another important feature of Rust that enables easier debugging by
@@ -330,7 +330,7 @@ automatically implementing the debug string representation of a type, when
 deriving the <a href="https://doc.rust-lang.org/std/fmt/trait.Debug.html"target="_blank" rel="noopener noreferrer">Debug trait</a>
 . As a classic example, suppose you have a <code>Point</code>
 structure with integer (32 bits) abscissa and ordinate fields:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Point</span> {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Point</span> {
     x: <span style="color:#66d9ef">i32</span>,
     y: <span style="color:#66d9ef">i32</span>,
 }
@@ -340,35 +340,35 @@ structure with integer (32 bits) abscissa and ordinate fields:</p>
 only thing you need to do is to derive the <code>Debug</code> trait with a
 <a href="https://doc.rust-lang.org/reference/procedural-macros.html"target="_blank" rel="noopener noreferrer">procedural derive macro</a>
 , to be able to use the <code>{:?}</code> syntax:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">#[derive(Debug)]</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">#[derive(Debug)]</span>
 <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Point</span> {
     x: <span style="color:#66d9ef">i32</span>,
     y: <span style="color:#66d9ef">i32</span>,
 }
 
-println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, origin);
-</code></pre></div><pre><code class="language-console" data-lang="console">Point { x: 0, y: 0 }
-</code></pre><p>And you can also enable pretty-printing with a slightly different syntax:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:#?}&#34;</span>, origin);
-</code></pre></div><pre><code class="language-console" data-lang="console">Point {
+println!(<span style="color:#e6db74">&#34;{:?}&#34;</span>, origin);
+</code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">Point { x: 0, y: 0 }
+</code></pre></div><p>And you can also enable pretty-printing with a slightly different syntax:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">println!(<span style="color:#e6db74">&#34;{:#?}&#34;</span>, origin);
+</code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">Point {
     x: 0,
     y: 0,
 }
-</code></pre><p>Coming back to our example, we can finally start to see all the file records
+</code></pre></div><p>Coming back to our example, we can finally start to see all the file records
 being printed to the standard output when we run the project:</p>
-<pre><code class="language-console" data-lang="console">$ cargo run
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ cargo run
 Parsing CSV records
-StringRecord([&quot;Agliè&quot;, &quot;2608&quot;])
-StringRecord([&quot;Airasca&quot;, &quot;3790&quot;])
-StringRecord([&quot;Ala di Stura&quot;, &quot;435&quot;])
-StringRecord([&quot;Albiano d\'Ivrea&quot;, &quot;1847&quot;])
-StringRecord([&quot;Alice Superiore&quot;, &quot;694&quot;])
-StringRecord([&quot;Almese&quot;, &quot;6173&quot;])
-StringRecord([&quot;Alpette&quot;, &quot;267&quot;])
-StringRecord([&quot;Alpignano&quot;, &quot;16817&quot;])
-
-...
-</code></pre><h2 id="chapter-03---logging">Chapter 03 - Logging</h2>
+StringRecord([&#34;Agliè&#34;, &#34;2608&#34;])
+StringRecord([&#34;Airasca&#34;, &#34;3790&#34;])
+StringRecord([&#34;Ala di Stura&#34;, &#34;435&#34;])
+StringRecord([&#34;Albiano d\&#39;Ivrea&#34;, &#34;1847&#34;])
+StringRecord([&#34;Alice Superiore&#34;, &#34;694&#34;])
+StringRecord([&#34;Almese&#34;, &#34;6173&#34;])
+StringRecord([&#34;Alpette&#34;, &#34;267&#34;])
+StringRecord([&#34;Alpignano&#34;, &#34;16817&#34;])
+<span style="color:#960050;background-color:#1e0010">
+</span><span style="color:#960050;background-color:#1e0010"></span>...
+</code></pre></div><h2 id="chapter-03---logging">Chapter 03 - Logging</h2>
 <p>We ended <a href="#chapter-02---reading-the-dataset">the second chapter</a>
  by printing
 all the cities in the census file to the standard output, and that is quite a lot
@@ -386,14 +386,14 @@ respectively in the <a href="https://docs.rs/log/0.4.11/log/"target="_blank" rel
 there are several other implementations that you are free to try out).</p>
 <p>As we have done for the <code>csv</code> library, the first thing to do is to import them
 as new dependencies in our <code>Cargo.toml</code> file:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-toml" data-lang="toml">[<span style="color:#a6e22e">dependencies</span>]
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-toml" data-lang="toml">[<span style="color:#a6e22e">dependencies</span>]
 <span style="color:#a6e22e">csv</span> = <span style="color:#e6db74">&#34;1.1.3&#34;</span>
 <span style="color:#a6e22e">env_logger</span> = <span style="color:#e6db74">&#34;0.8.1&#34;</span>
 <span style="color:#a6e22e">log</span> = <span style="color:#e6db74">&#34;0.4.11&#34;</span>
 </code></pre></div><p>Using a logger is relatively simple, we just need to initialize the logger
 implementation and then use the various log APIs provided by the facade
 according to the level we need (trace, debug, info, warn, or error):</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">main</span>() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">main</span>() {
     <span style="color:#75715e">// initialize the logger implementation
 </span><span style="color:#75715e"></span>    env_logger::init();
 
@@ -412,10 +412,10 @@ according to the level we need (trace, debug, info, warn, or error):</p>
 <code>log::trace!</code> macros according to the level of logging we find the most
 appropriate. And we can enable different level of logging by setting the
 environment variable <code>RUST_LOG</code>, for example:</p>
-<pre><code class="language-console" data-lang="console">$ RUST_LOG=info cargo run
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ RUST_LOG<span style="color:#f92672">=</span>info cargo run
 [2020-10-04T12:17:45Z INFO  benford] Reading dataset from census.csv
 [2020-10-04T12:17:45Z INFO  benford] Parsing CSV records
-</code></pre><p>While setting <code>RUST_LOG=trace</code> would also print all the file records.</p>
+</code></pre></div><p>While setting <code>RUST_LOG=trace</code> would also print all the file records.</p>
 <h2 id="chapter-04---parsing-the-dataset">Chapter 04 - Parsing the Dataset</h2>
 <p>The next step involves extracting the information we need from each record (i.e.
 the population value) and building the frequency map of the leading digits.</p>
@@ -425,7 +425,7 @@ the population value) and building the frequency map of the leading digits.</p>
 corresponds to the second column of our dataset. We can achieve this by using
 the <a href="https://docs.rs/csv/1.1.3/csv/struct.StringRecord.html#method.get"target="_blank" rel="noopener noreferrer"><code>csv::StringRecord::get()</code></a>
  method:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
     <span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> record.expect(<span style="color:#e6db74">&#34;Invalid record&#34;</span>);
 
     <span style="color:#66d9ef">let</span> city <span style="color:#f92672">=</span> record.get(<span style="color:#ae81ff">0</span>);
@@ -433,14 +433,14 @@ the <a href="https://docs.rs/csv/1.1.3/csv/struct.StringRecord.html#method.get"t
     log::trace<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?} population: {:?}&#34;</span>, city, population);
 }
 </code></pre></div><p>And if we run the project, we&rsquo;ll see something similar to:</p>
-<pre><code class="language-console" data-lang="console">$ RUST_LOG=trace cargo run
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ RUST_LOG<span style="color:#f92672">=</span>trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[TRACE] Some(&quot;Agliè&quot;) population: Some(&quot;2608&quot;)
-[TRACE] Some(&quot;Airasca&quot;) population: Some(&quot;3790&quot;)
-
-...
-</code></pre><p>From this output, it looks like we are not just dealing with strings; in fact, as
+[TRACE] Some(&#34;Agliè&#34;) population: Some(&#34;2608&#34;)
+[TRACE] Some(&#34;Airasca&#34;) population: Some(&#34;3790&#34;)
+<span style="color:#960050;background-color:#1e0010">
+</span><span style="color:#960050;background-color:#1e0010"></span>...
+</code></pre></div><p>From this output, it looks like we are not just dealing with strings; in fact, as
 you can see, these are wrapped in a type which <code>Debug</code> representation is, for
 example, <code>Some(&quot;Airasca&quot;)</code> or <code>Some(&quot;3790&quot;)</code>.</p>
 <p>You are now meeting what is, with <code>Result</code>, possibly the most important enum in
@@ -460,7 +460,7 @@ null references or null pointers).</p>
 <code>Some(population)</code> when the CSV record contains a second column, or <code>None</code> when
 it doesn&rsquo;t (which should never happen if our input is correct). To do so, we can
 use the Rust keyword <code>match</code>:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
     <span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> record.expect(<span style="color:#e6db74">&#34;Invalid record&#34;</span>);
 
     <span style="color:#66d9ef">match</span> record.get(<span style="color:#ae81ff">1</span>) {
@@ -468,14 +468,14 @@ use the Rust keyword <code>match</code>:</p>
         None <span style="color:#f92672">=&gt;</span> log::warn<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;No population value!&#34;</span>),
     };
 }
-</code></pre></div><pre><code class="language-console" data-lang="console">$ RUST_LOG=trace cargo run
+</code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ RUST_LOG<span style="color:#f92672">=</span>trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
 [TRACE] Population: 2608
 [TRACE] Population: 3790
-
-...
-</code></pre><p>We can now finally build the frequency map, where the keys of the map will be
+<span style="color:#960050;background-color:#1e0010">
+</span><span style="color:#960050;background-color:#1e0010"></span>...
+</code></pre></div><p>We can now finally build the frequency map, where the keys of the map will be
 all the possible digits $[1-9]$, while the values will be the frequency these
 digits appear as the first digit of the population values.</p>
 <p>The only choice we need to make is if we want to deal with these numbers as
@@ -492,9 +492,9 @@ Fortunately, what we need to do is not too complex: we need to get the first dig
 of the population value, that is (being the population value a string), we need
 to extract its first character.</p>
 <p>If we try with:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> digit <span style="color:#f92672">=</span> population[<span style="color:#ae81ff">0</span>];
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> digit <span style="color:#f92672">=</span> population[<span style="color:#ae81ff">0</span>];
 </code></pre></div><p>We would just get the following error:</p>
-<pre><code>  --&gt; src/main.rs:20:29
+<pre tabindex="0"><code>  --&gt; src/main.rs:20:29
    |
 20 |                 let digit = population[0];
    |                             ^^^^^^^^^^^^^ string indices are ranges of `usize`
@@ -507,7 +507,7 @@ to extract its first character.</p>
 with a nice explanation on why indexing strings is not possible, but also a
 couple of solutions that we can use to fix this problem. There is also a third
 option, which is semantically equivalent, and that&rsquo;s what we are going to use:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">// get the first character of the population (represented as string)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">// get the first character of the population (represented as string)
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">let</span> digit <span style="color:#f92672">=</span> population.chars().next();
 </code></pre></div><p><a href="https://doc.rust-lang.org/std/iter/trait.Iterator.html#tymethod.next"target="_blank" rel="noopener noreferrer">If you look closely</a>
 , you&rsquo;ll see that <code>digit</code> is not exactly a character, but
@@ -520,7 +520,7 @@ part of the logic into a separate function that, given an immutable reference to
 a valid record, would optionally return the first digit of the population value
 as character.</p>
 <p>This is what a possible implementation could look like:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">get_first_digit</span>(record: <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">csv</span>::StringRecord) -&gt; Option<span style="color:#f92672">&lt;</span>char<span style="color:#f92672">&gt;</span> {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">get_first_digit</span>(record: <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">csv</span>::StringRecord) -&gt; Option<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">char</span><span style="color:#f92672">&gt;</span> {
     log::trace<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Parsing record: {:?}&#34;</span>, record);
     <span style="color:#66d9ef">match</span> record.get(<span style="color:#ae81ff">1</span>) {
         Some(population) <span style="color:#f92672">=&gt;</span> population.chars().next(),
@@ -536,7 +536,7 @@ utility methods we could use to make the implementation less verbose by replacin
 the pattern matching with the semantically equivalent <a href="https://doc.rust-lang.org/std/option/enum.Option.html#method.and_then"target="_blank" rel="noopener noreferrer"><code>Option::and_then</code></a>
 
 combinator:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">record
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">record
     .get(<span style="color:#ae81ff">1</span>)
     .and_then(<span style="color:#f92672">|</span>population<span style="color:#f92672">|</span> population.chars().next())
 </code></pre></div><p>If you are wondering about the syntax inside the <code>and_then</code> combinator, this is
@@ -551,7 +551,7 @@ record contains invalid data, such as <code>abc-xyz</code>, this method would re
 character <code>a</code>.</p>
 <p>To solve this issue, we can simply chain another <code>Option</code> combinator, to filter
 only valid characters:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">record
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">record
     .get(<span style="color:#ae81ff">1</span>)
     .and_then(<span style="color:#f92672">|</span>population<span style="color:#f92672">|</span> population.chars().next())
     .filter(<span style="color:#f92672">|</span>c<span style="color:#f92672">|</span> c.is_ascii_digit() <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">*</span>c <span style="color:#f92672">!=</span> <span style="color:#e6db74">&#39;0&#39;</span>)
@@ -568,7 +568,7 @@ closure input <code>c</code> is a reference to a character, and therefore it nee
  before being compared to another character.</p>
 <p>Now we can match the <code>Option</code> returned by this function in our loop, and we can
 do so by introducing an alternative but equivalent syntax to <code>match</code>:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records() {
     <span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> record.expect(<span style="color:#e6db74">&#34;Invalid record&#34;</span>);
 
     <span style="color:#66d9ef">if</span> <span style="color:#66d9ef">let</span> Some(digit) <span style="color:#f92672">=</span> get_first_digit(<span style="color:#f92672">&amp;</span>record) {
@@ -577,16 +577,16 @@ do so by introducing an alternative but equivalent syntax to <code>match</code>:
         log::warn<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;No valid digit found in {:?}&#34;</span>, record);
     }
 }
-</code></pre></div><pre><code class="language-console" data-lang="console">$ RUST_LOG=trace cargo run
+</code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ RUST_LOG<span style="color:#f92672">=</span>trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[TRACE] Parsing record: StringRecord([&quot;Agliè&quot;, &quot;2608&quot;])
-[TRACE] Found digit '2' in StringRecord([&quot;Agliè&quot;, &quot;2608&quot;])
-[TRACE] Parsing record: StringRecord([&quot;Airasca&quot;, &quot;3790&quot;])
-[TRACE] Found digit '3' in StringRecord([&quot;Airasca&quot;, &quot;3790&quot;])
-
-...
-</code></pre><p>The only missing part is to create the frequency map according to the digits
+[TRACE] Parsing record: StringRecord([&#34;Agliè&#34;, &#34;2608&#34;])
+[TRACE] Found digit &#39;2&#39; in StringRecord([&#34;Agliè&#34;, &#34;2608&#34;])
+[TRACE] Parsing record: StringRecord([&#34;Airasca&#34;, &#34;3790&#34;])
+[TRACE] Found digit &#39;3&#39; in StringRecord([&#34;Airasca&#34;, &#34;3790&#34;])
+<span style="color:#960050;background-color:#1e0010">
+</span><span style="color:#960050;background-color:#1e0010"></span>...
+</code></pre></div><p>The only missing part is to create the frequency map according to the digits
 found.</p>
 <p>What we need is an associative array; for that, the obvious choice would
 be a <a href="https://en.wikipedia.org/wiki/Hash_table"target="_blank" rel="noopener noreferrer">hash table</a>
@@ -597,7 +597,7 @@ find a hash table implementation in the Rust standard library under the
 parse them (i.e. as characters), while the values will be integer values that
 correspond to how many times we found that leading digit in the records.</p>
 <p>We can now proceed and fill up the frequency map:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::collections::HashMap;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::collections::HashMap;
 
 <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> frequency <span style="color:#f92672">=</span> HashMap::new();
 
@@ -624,27 +624,27 @@ representing how many times we already encountered it, and increment its
 value (<code>count</code>) by 1.
 If the digit we are trying to use as key doesn&rsquo;t belong yet to the frequency map,
 a new entry will be created with an initial value equal to 0.</p>
-<pre><code class="language-console" data-lang="console">$ RUST_LOG=debug cargo run
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ RUST_LOG<span style="color:#f92672">=</span>debug cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[DEBUG] Frequency: {'2': 1395, '7': 455, '4': 745, '1': 2486, '9': 362, '8': 449, '6': 550, '3': 1007, '5': 643}
-</code></pre><p>Are these values starting to look familiar?</p>
+[DEBUG] Frequency: {&#39;2&#39;: 1395, &#39;7&#39;: 455, &#39;4&#39;: 745, &#39;1&#39;: 2486, &#39;9&#39;: 362, &#39;8&#39;: 449, &#39;6&#39;: 550, &#39;3&#39;: 1007, &#39;5&#39;: 643}
+</code></pre></div><p>Are these values starting to look familiar?</p>
 <h2 id="chapter-05---comparing-results">Chapter 05 - Comparing Results</h2>
 <p>We ended <a href="#chapter-04---parsing-the-dataset">the previous chapter</a>
  with a
 frequency map of our digits that looks like this:</p>
-<pre><code class="language-console" data-lang="console">Frequency: {
-    '2': 1395,
-    '3': 1007,
-    '5': 643,
-    '6': 550,
-    '4': 745,
-    '8': 449,
-    '9': 362,
-    '1': 2486,
-    '7': 455,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">Frequency: {
+    &#39;2&#39;: 1395,
+    &#39;3&#39;: 1007,
+    &#39;5&#39;: 643,
+    &#39;6&#39;: 550,
+    &#39;4&#39;: 745,
+    &#39;8&#39;: 449,
+    &#39;9&#39;: 362,
+    &#39;1&#39;: 2486,
+    &#39;7&#39;: 455,
 }
-</code></pre><p>But these are just the raw frequencies of the first digits; what we would like
+</code></pre></div><p>But these are just the raw frequencies of the first digits; what we would like
 is instead the percentages in which these digits appear and, ideally, they would be
 sorted by digit from 1 to 9. There are many ways to achieve this; one way is
 to store our final results into a different data structure where keys are
@@ -653,8 +653,8 @@ sorted: in Rust, you can find this data structure under the <a href="https://doc
 <p>The keys of the new map are always going to be all the (sorted) digits $[1-9]$ as
 characters, while the values will be floating point numbers representing the
 percentage of how often they appear.</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> total: <span style="color:#66d9ef">usize</span> <span style="color:#f92672">=</span> frequency.values().sum();
-<span style="color:#66d9ef">let</span> percentage: <span style="color:#a6e22e">BTreeMap</span><span style="color:#f92672">&lt;</span>char, <span style="color:#66d9ef">f32</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">=</span> frequency
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> total: <span style="color:#66d9ef">usize</span> <span style="color:#f92672">=</span> frequency.values().sum();
+<span style="color:#66d9ef">let</span> percentage: <span style="color:#a6e22e">BTreeMap</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">char</span>, <span style="color:#66d9ef">f32</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">=</span> frequency
     .into_iter()
     .map(<span style="color:#f92672">|</span>(digit, count)<span style="color:#f92672">|</span> (digit, count <span style="color:#66d9ef">as</span> <span style="color:#66d9ef">f32</span> <span style="color:#f92672">/</span> total <span style="color:#66d9ef">as</span> <span style="color:#66d9ef">f32</span>))
     .collect();
@@ -667,18 +667,18 @@ for each of these, we keep the <code>digit</code> as is while the value <code>co
 its respective percentage, to then finally collect all the new key-value pairs
 into the new data structure.</p>
 <p>And, believe it or not, this is what we get:</p>
-<pre><code class="language-console" data-lang="console">Percentage: {
-    '1': 0.31,
-    '2': 0.17,
-    '3': 0.12,
-    '4': 0.09,
-    '5': 0.08,
-    '6': 0.07,
-    '7': 0.06,
-    '8': 0.06,
-    '9': 0.04,
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">Percentage: {
+    &#39;1&#39;: 0.31,
+    &#39;2&#39;: 0.17,
+    &#39;3&#39;: 0.12,
+    &#39;4&#39;: 0.09,
+    &#39;5&#39;: 0.08,
+    &#39;6&#39;: 0.07,
+    &#39;7&#39;: 0.06,
+    &#39;8&#39;: 0.06,
+    &#39;9&#39;: 0.04,
 }
-</code></pre><p>Let&rsquo;s compare it with the expected values (the blue bars represent the expected
+</code></pre></div><p>Let&rsquo;s compare it with the expected values (the blue bars represent the expected
 values, while the red ones represent the results we got from the census file):</p>
 <p><img  src="/img/benford/probabilities-delta.png"
         alt="delta"/></p>
@@ -697,7 +697,7 @@ logic, we can try to implement a different mechanism for error handling that
 would fit better the expectations of our application.</p>
 <p>For example, let&rsquo;s consider what happens when we have managed to open the file,
 but we can&rsquo;t parse a specific record:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">// record is a Result that we must unwrap before parsing its content
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">// record is a Result that we must unwrap before parsing its content
 </span><span style="color:#75715e"></span><span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> record.expect(<span style="color:#e6db74">&#34;Invalid record&#34;</span>);
 </code></pre></div><p>With our current implementation, if the record is not valid, the program will
 terminate. Let&rsquo;s assume instead that discarding an invalid record is a valid
@@ -707,23 +707,23 @@ choice.</p>
  before we unwrap it with <code>.expect()</code>, this means that we can
 pattern match it with its variants to write a semantically equivalent version of
 our code:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> record {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> record {
     Ok(record) <span style="color:#f92672">=&gt;</span> record,
-    Err(e) <span style="color:#f92672">=&gt;</span> panic<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Invalid record: {:?}&#34;</span>, e),
+    Err(e) <span style="color:#f92672">=&gt;</span> panic!(<span style="color:#e6db74">&#34;Invalid record: {:?}&#34;</span>, e),
 };
 </code></pre></div><p>And if our census file contained, for example, an invalid second record such as:</p>
-<pre><code>City,Population
+<pre tabindex="0"><code>City,Population
 Agliè,2608,
 Airasca,3790, UNEXPECTED
 Ala di Stura,435
 
 ...
 </code></pre><p>Our program would <code>panic!</code> with the following error message:</p>
-<pre><code class="language-console" data-lang="console">[INFO] Parsing CSV records
-thread 'main' panicked at 'Invalid record: Error(UnequalLengths { pos: Some(Position { byte: 16, line: 2, record: 1 }), expected_len: 2, len: 3 })', src/main.rs:26:23
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">[INFO] Parsing CSV records
+thread &#39;main&#39; panicked at &#39;Invalid record: Error(UnequalLengths { pos: Some(Position { byte: 16, line: 2, record: 1 }), expected_len: 2, len: 3 })&#39;, src/main.rs:26:23
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-</code></pre><p>Let&rsquo;s just skip to the next record if the one we are currently at is not valid:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> record {
+</code></pre></div><p>Let&rsquo;s just skip to the next record if the one we are currently at is not valid:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">let</span> record <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> record {
     Ok(record) <span style="color:#f92672">=&gt;</span> record,
     Err(e) <span style="color:#f92672">=&gt;</span> {
         log::warn<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Skipping invalid record: {:?}&#34;</span>, e);
@@ -740,7 +740,7 @@ type, here we can use the <a href="https://doc.rust-lang.org/std/iter/trait.Iter
  method in combination
 with <a href="https://doc.rust-lang.org/std/result/enum.Result.html#method.ok"target="_blank" rel="noopener noreferrer"><code>Result::ok()</code></a>
  to filter for valid records:</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records().filter_map(Result::ok) {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">for</span> record <span style="color:#66d9ef">in</span> reader.records().filter_map(Result::ok) {
     <span style="color:#75715e">// parse valid record
 </span><span style="color:#75715e"></span>}
 </code></pre></div><h2 id="chapter-07---command-line-arguments">Chapter 07 - Command Line Arguments</h2>
@@ -767,19 +767,19 @@ Fortunately, we have partially seen how to do this already with the
 <a href="https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.nth"target="_blank" rel="noopener noreferrer"><code>Iterator::nth()</code> method</a>
  that returns an <code>Option</code> with <code>Some(Type)</code> if the
 item in position <em>nth</em> exists (otherwise returns <code>None</code>):</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::env;
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::env;
 
 <span style="color:#66d9ef">let</span> dataset <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> env::args().nth(<span style="color:#ae81ff">1</span>) {
     Some(path) <span style="color:#f92672">=&gt;</span> path,
-    _ <span style="color:#f92672">=&gt;</span> panic<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;The path of the census file must be specified&#34;</span>),
+    _ <span style="color:#f92672">=&gt;</span> panic!(<span style="color:#e6db74">&#34;The path of the census file must be specified&#34;</span>),
 };
 </code></pre></div><p>As a final note, the underscore <code>_</code> you see in the above <code>match</code> is an identifier
 that can be used to match <em>anything else</em> (i.e. any other possible enum variant),
 which, in the case of a <code>Option</code> enum, is equivalent to writing <code>None</code>.</p>
 <p>To run your new implementation, you can pass a command line argument to your binary
 via Cargo with:</p>
-<pre><code class="language-console" data-lang="console">$ cargo run -- census.csv
-</code></pre><h2 id="conclusions">Conclusions</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-console" data-lang="console">$ cargo run -- census.csv
+</code></pre></div><h2 id="conclusions">Conclusions</h2>
 <p>We&rsquo;ve covered a lot together, and obviously there would be a lot more to cover
 (for that I suggest to have a look at the <a href="https://doc.rust-lang.org/book/"target="_blank" rel="noopener noreferrer">Rust Book</a>
 ), but in the end we&rsquo;ve
@@ -787,7 +787,7 @@ managed to complete a nice implementation to show the <em>weirdness</em> of Benf
 in less than 50 lines of code.</p>
 <p>I leave you with the full code, so that you can have a single place where to
 review everything we&rsquo;ve seen so far.</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::{
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::{
     collections::{BTreeMap, HashMap},
     env, fs,
 };
@@ -797,7 +797,7 @@ review everything we&rsquo;ve seen so far.</p>
 
     <span style="color:#66d9ef">let</span> dataset <span style="color:#f92672">=</span> <span style="color:#66d9ef">match</span> env::args().nth(<span style="color:#ae81ff">1</span>) {
         Some(path) <span style="color:#f92672">=&gt;</span> path,
-        _ <span style="color:#f92672">=&gt;</span> panic<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;The path of the census file must be specified&#34;</span>),
+        _ <span style="color:#f92672">=&gt;</span> panic!(<span style="color:#e6db74">&#34;The path of the census file must be specified&#34;</span>),
     };
 
     log::info<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Reading dataset from {}&#34;</span>, dataset);
@@ -819,14 +819,14 @@ review everything we&rsquo;ve seen so far.</p>
     log::debug<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Frequency: {:?}&#34;</span>, frequency);
 
     <span style="color:#66d9ef">let</span> total: <span style="color:#66d9ef">usize</span> <span style="color:#f92672">=</span> frequency.values().sum();
-    <span style="color:#66d9ef">let</span> percentage: <span style="color:#a6e22e">BTreeMap</span><span style="color:#f92672">&lt;</span>char, <span style="color:#66d9ef">f32</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">=</span> frequency
+    <span style="color:#66d9ef">let</span> percentage: <span style="color:#a6e22e">BTreeMap</span><span style="color:#f92672">&lt;</span><span style="color:#66d9ef">char</span>, <span style="color:#66d9ef">f32</span><span style="color:#f92672">&gt;</span> <span style="color:#f92672">=</span> frequency
         .into_iter()
         .map(<span style="color:#f92672">|</span>(digit, count)<span style="color:#f92672">|</span> (digit, count <span style="color:#66d9ef">as</span> <span style="color:#66d9ef">f32</span> <span style="color:#f92672">/</span> total <span style="color:#66d9ef">as</span> <span style="color:#66d9ef">f32</span>))
         .collect();
     log::info<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Percentage: {:#.2?}&#34;</span>, percentage);
 }
 
-<span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">get_first_digit</span>(record: <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">csv</span>::StringRecord) -&gt; Option<span style="color:#f92672">&lt;</span>char<span style="color:#f92672">&gt;</span> {
+<span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">get_first_digit</span>(record: <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">csv</span>::StringRecord) -&gt; Option<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">char</span><span style="color:#f92672">&gt;</span> {
     log::trace<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Parsing record: {:?}&#34;</span>, record);
     record
         .get(<span style="color:#ae81ff">1</span>)
@@ -874,18 +874,18 @@ make use of any of the available alternatives?</li>
 <ol>
 <li id="fn:1" role="doc-endnote">
 <p>Please note that the reason why this law seems to yield such accurate results
-is, although quite interesting, out of the scope of this post. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+is, although quite interesting, out of the scope of this post.&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:2" role="doc-endnote">
 <p>By default <code>cargo build</code> will compile your project in Debug mode (dev
 profile), you can enable optimizations and compile it in Release with
 <code>cargo build --release</code>. You can go even further and customize your builds with
 specific <a href="https://doc.rust-lang.org/book/ch14-01-release-profiles.html"target="_blank" rel="noopener noreferrer">profile settings</a>
- in your <code>Cargo.toml</code>. <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+ in your <code>Cargo.toml</code>.&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:3" role="doc-endnote">
 <p>If you want to know what are the traits that are implemented for a specific
-type, just look for the <code>Trait Implementations</code> section in the type documentation. <a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+type, just look for the <code>Trait Implementations</code> section in the type documentation.&#160;<a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:4" role="doc-endnote">
 <p>When the size of your project increases, the Rust compiler starts to become
@@ -893,18 +893,18 @@ slower and slower; if you just need to check whether your code is correct withou
 actually producing an executable you can use <code>cargo check</code> instead of using
 <code>cargo build</code>, or (if you want even more useful suggestions from the compiler)
 try using <a href="https://github.com/rust-lang/rust-clippy"target="_blank" rel="noopener noreferrer">clippy</a>
- with <code>cargo clippy</code>. <a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+ with <code>cargo clippy</code>.&#160;<a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:5" role="doc-endnote">
 <p>The borrow checker is out of the scope of this post; for now you just need to
 know that is thanks to the borrow checker that the Rust compiler can prevent
 <a href="https://en.wikipedia.org/wiki/Race_condition#Data_race"target="_blank" rel="noopener noreferrer">data races</a>
  (and consequent <a href="https://en.wikipedia.org/wiki/Undefined_behavior"target="_blank" rel="noopener noreferrer">undefined behavior</a>
-) at <strong>compile time</strong>. <a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+) at <strong>compile time</strong>.&#160;<a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:6" role="doc-endnote">
 <p>Dependency management is <a href="https://en.wikipedia.org/wiki/Dependency_hell"target="_blank" rel="noopener noreferrer">very, very hard</a>
-. <a href="#fnref:6" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+.&#160;<a href="#fnref:6" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 </ol>
 </section>
@@ -913,6 +913,6 @@ know that is thanks to the borrow checker that the Rust compiler can prevent
 </div>
 <div class="article bottom"><section class="article navigation"><p><a class="link" href="/posts/formicarium/"><span class="iconfont icon-article"></span>Formicarium</a></p></section></div></section><section id="footer"></section><script defer type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML" integrity="sha384-e/4/LvThKH1gwzXhdbY2AsjR3rm7LHWyhIG5C0jiRfn8AN2eTN5ILeztWw0H9jmN" crossorigin="anonymous"></script>
         <script
-            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script><script src="/js/hljs.min.0799348a91dce12c6be4a73f943cfe78f181f4e6f6ec35c4af0fca1de377879f77cfab03c30f03a174d675737b5a9314.js" integrity="sha384-B5k0ipHc4Sxr5Kc/lDz&#43;ePGB9Ob27DXErw/KHeN3h593z6sDww8DoXTWdXN7WpMU"></script><script>hljs.initHighlightingOnLoad();</script></body>
+            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script><script src="/js/hljs.min.72e76ccf211868d08e31d7ca45c02501991bd760f28809c52045fa79fb7b7428664bb54ae875b46031ebc760c77b9562.js" integrity="sha384-cudszyEYaNCOMdfKRcAlAZkb12DyiAnFIEX6eft7dChmS7VK6HW0YDHrx2DHe5Vi"></script><script>hljs.initHighlightingOnLoad();</script></body>
 
 </html>
