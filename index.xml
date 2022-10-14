@@ -5,10 +5,443 @@
     <description>Recent content on gliderkite.io</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 17 Oct 2020 10:06:30 +0100</lastBuildDate>
+    <lastBuildDate>Fri, 14 Oct 2022 00:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://gliderkite.github.io/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>An asynchronous self-rehydrating cache in Rust</title>
+      <link>https://gliderkite.github.io/posts/sr-cache/</link>
+      <pubDate>Fri, 14 Oct 2022 00:00:00 +0000</pubDate>
+      
+      <guid>https://gliderkite.github.io/posts/sr-cache/</guid>
+      <description>&lt;h1 id=&#34;sr-cache&#34;&gt;sr-cache&lt;/h1&gt;
+&lt;p&gt;A periodic asynchronous self-rehydrating cache.&lt;/p&gt;
+&lt;p&gt;The goal of this little project is to show step by step how to write a small and basic Rust implementation of a periodic self-rehydrating cache, where the user has access to two main APIs that resemble a &lt;a href=&#34;https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;HashMap&lt;/a&gt;
+ and allow to:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Insert a key-value pair along with:
+&lt;ul&gt;
+&lt;li&gt;Time To Live (TTL): interval of time after which the value is evicted from the cache. It effectively represents our simple cache replacement policy.&lt;/li&gt;
+&lt;li&gt;Update interval: interval of time after which, if the TTL has not yet expired, to call an asynchronous function that will allow to update the value stored in the cache.&lt;/li&gt;
+&lt;li&gt;The asynchronous update function.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Get the most recent value associated with a given key.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This kind of caching mechanism can be useful when we need to work with data that can be retrieved concurrently and doesn&amp;rsquo;t change very often. As an example, throughout this article we will work with a cache where we are going to store the price of electronic components, which can be retrieved by querying the web servers of 3rd party manufacturers via HTTP calls.&lt;/p&gt;
+&lt;h3 id=&#34;target-audience&#34;&gt;Target Audience&lt;/h3&gt;
+&lt;p&gt;I am targeting people that have read, even partially, &lt;a href=&#34;https://doc.rust-lang.org/stable/book/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;The Rust Book&lt;/a&gt;
+ and are looking to dive a bit deeper into the language. At the same time, the implementation of the cache remains naive and what I write about can be considered mostly as educative content rather than an attempt to promote some sort of production ready code.&lt;/p&gt;
+&lt;h2 id=&#34;the-asynchronous-runtime&#34;&gt;The asynchronous runtime&lt;/h2&gt;
+&lt;p&gt;The first thing to consider is possibly how are we going to support updating the cache values asynchronously in a way that is opaque to the user, that is, being able to hide the complexity of a background task that takes care of the updates from the public APIs of the cache.&lt;/p&gt;
+&lt;p&gt;For this use case, I chose &lt;a href=&#34;https://tokio.rs/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Tokio&lt;/a&gt;
+, arguably one of the most complete and best maintained asynchronous runtimes in Rust. The main features we will exploit are the ability to &lt;a href=&#34;https://docs.rs/tokio/latest/tokio/task/fn.spawn.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;spawn&lt;/a&gt;
+ asynchronous tasks (where to run the update function provided by the user of the cache) as well as the ability to keep track of &lt;a href=&#34;https://docs.rs/tokio/latest/tokio/time/index.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;time&lt;/a&gt;
+ (TTL and update interval).&lt;/p&gt;
+&lt;h2 id=&#34;the-cache-data-structure&#34;&gt;The Cache data structure&lt;/h2&gt;
+&lt;p&gt;As already mentioned, our cache is going to behave very similarly to a hash table; we can start by defining it as follows:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::collections::HashMap;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Cache&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;K, V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    items: &lt;span style=&#34;color:#a6e22e&#34;&gt;HashMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;K, CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt;,
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;From the above definition, we can see how our cache will be generic over its type parameters &lt;code&gt;K&lt;/code&gt; (for the key type) and &lt;code&gt;V&lt;/code&gt; (for the value type). Note how we are not storing &lt;code&gt;V&lt;/code&gt; directly as value in our hash table, but instead &lt;code&gt;V&lt;/code&gt; is wrapped in a new type &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; that we are yet to define. This is because we are going to exploit the type properties of &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; to communicate with the cache when a value &lt;code&gt;V&lt;/code&gt; is updated by a background task.&lt;/p&gt;
+&lt;p&gt;To understand how to make this possible, we need to think about what we want to achieve:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Shared ownership: The value stored in the cache should also be accessible by a background task that can change its value, and which ideally should not have access to the whole cache.&lt;/p&gt;
+&lt;p&gt;Following this requirement, the default wrapper for our values &lt;code&gt;V&lt;/code&gt; is &lt;a href=&#34;https://doc.rust-lang.org/std/rc/index.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Rc&lt;/a&gt;
+, a single-threaded reference-counting pointer, which provides shared ownership of a value of type &lt;code&gt;V&lt;/code&gt;. We can use reference-counting pointers to share references to the same heap allocation of the same value by, for example, passing its &lt;a href=&#34;https://doc.rust-lang.org/std/clone/trait.Clone.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Clone&lt;/a&gt;
+ to the background task.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::rc::Rc;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Rc&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;; 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Thread-safety: each value can be associated with its own lightweight and non-blocking background task, and each task can run concurrently to the other tasks. This can happen on the same thread that spawned the task, but it may also be sent to a different thread depending on the runtime configuration, which in our case will be multi-threaded.&lt;/p&gt;
+&lt;p&gt;Following this requirement, we need to change &lt;code&gt;Rc&lt;/code&gt; to &lt;a href=&#34;https://doc.rust-lang.org/std/sync/struct.Arc.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Arc&lt;/a&gt;
+. Unlike &lt;code&gt;Rc&amp;lt;V&amp;gt;&lt;/code&gt;, &lt;code&gt;Arc&amp;lt;V&amp;gt;&lt;/code&gt; uses atomic operations for its reference counting, making it thread-safe (at the expense of the more costly atomic operations required to update the reference count).&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::sync::Arc;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Arc&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;; 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;(Interior) Mutability: each background task needs to be able to change the value it is in charge of updating, so that the most up to date value can be reflected by what is returned to the user when querying the cache.&lt;/p&gt;
+&lt;p&gt;In Rust, shared references such as &lt;code&gt;Arc&lt;/code&gt; in Rust disallow mutation by default: we cannot obtain a mutable reference to our values &lt;code&gt;V&lt;/code&gt; when stored inside an &lt;code&gt;Arc&amp;lt;V&amp;gt;&lt;/code&gt;. However, we need to be able to mutate &lt;code&gt;V&lt;/code&gt; while having multiple aliases. This can be achieved using a pattern called interior mutability. A type has interior mutability if its internal state can be changed through a shared reference to it.
+To achieve this, we can make use of mutexes, and since the data &lt;code&gt;V&lt;/code&gt; we are going to protect can be accessed by both the background task and the user (via the cache APIs) in a separate thread, we can avoid blocking the user thread that is trying to acquire the lock when the background task has locked it already (and vice-versa) by using an asynchronous mutex provided by Tokio, which in this scenario will yield execution back to the runtime. Moreover, since we can differentiate between read (eg: getting the value from the cache) and write (eg: setting the updated value in the background task) operations, we are going to use a &lt;a href=&#34;https://docs.rs/tokio/latest/tokio/sync/struct.RwLock.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;RwLock&lt;/a&gt;
+ asynchronous reader-writer lock.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::sync::Arc;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; tokio::sync::RwLock;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Arc&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;RwLock&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt;;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Eviction: finally, we need to be able to encode in our type the information that will tell us if the value associated with a given cache key has been evicted, due to the expiration of the TTL, or if its value is still considered valid.&lt;/p&gt;
+&lt;p&gt;We can express this requirement in the type system by allowing our values to be always either valid or evicted via one of the most common Rust tagged union types: &lt;a href=&#34;https://doc.rust-lang.org/std/option/enum.Option.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Option&lt;/a&gt;
+. When the value is set to &lt;code&gt;Some&lt;/code&gt; it will represent a valid value, otherwise it will be set and returned to the user as &lt;code&gt;None&lt;/code&gt; when the TTL has expired.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::sync::Arc;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; tokio::sync::RwLock;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Arc&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;RwLock&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Going back to our cache, what we are missing is a way to construct an instance of it with initially no elements. To do so, we are going to manually implement the &lt;a href=&#34;https://doc.rust-lang.org/std/default/trait.Default.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Default&lt;/a&gt;
+ trait. Note how we need to be able to call &lt;code&gt;Default&lt;/code&gt; for our &lt;code&gt;Cache&amp;lt;K, V&amp;gt;&lt;/code&gt; even if &lt;code&gt;V&lt;/code&gt; is a type that does not implement &lt;code&gt;Default&lt;/code&gt;, therefore simply &lt;a href=&#34;https://doc.rust-lang.org/std/default/trait.Default.html#derivable&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;deriving Default&lt;/a&gt;
+ would not be sufficient.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;K, V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Default &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Cache&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;K, V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;default&lt;/span&gt;() -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Self&lt;/span&gt; {
+        Self {
+            items: &lt;span style=&#34;color:#a6e22e&#34;&gt;HashMap&lt;/span&gt;::default(),
+        }
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;cacheval-behavior&#34;&gt;CacheVal behavior&lt;/h2&gt;
+&lt;p&gt;So far, we have been able to define the &lt;code&gt;Cache&lt;/code&gt; data structure and, in particular, define how values are going to be stored, so that they can be accessed by both the user and the background task in charge of updating their value, by wrapping them in a new type alias &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt;. Type aliases in Rust allow us to simply define a new name for an existing type.&lt;/p&gt;
+&lt;p&gt;Although &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; is a type with basic semantics, we would still like to define its basic behavior by implementing a few traits that will become useful later on and make the API more convenient for the user of this type. For example, we could implement a constructor that takes a &lt;code&gt;V&lt;/code&gt; and simply returns a &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt;, or we could implement the trait &lt;a href=&#34;https://doc.rust-lang.org/std/fmt/trait.Debug.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Debug&lt;/a&gt;
+ for &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; (when &lt;code&gt;V&lt;/code&gt; implements &lt;code&gt;Debug&lt;/code&gt;). To do this, we can start by creating a new tuple struct type with a single field.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#[derive(Debug)]&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(Arc&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;RwLock&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The first useful trait we are going to implement is &lt;a href=&#34;https://doc.rust-lang.org/std/clone/trait.Clone.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Clone&lt;/a&gt;
+; this follows the shared ownership requirement that we discussed before, which implies we now need to be able to clone an instance of &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt;. Invoking clone on &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; will produce a new &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; instance, which points to the same allocation on the heap as the source &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt;, while increasing its reference count. Note how we need to be able to &lt;code&gt;Clone&lt;/code&gt; our &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; even if &lt;code&gt;V&lt;/code&gt; is a type that cannot be cloned, therefore, similarly to what we have seen for the cache &lt;code&gt;Default&lt;/code&gt; trait implementation, simply &lt;a href=&#34;https://doc.rust-lang.org/std/clone/trait.Clone.html#derivable&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;deriving Clone&lt;/a&gt;
+ would not be sufficient unless we can always guarantee that &lt;code&gt;V&lt;/code&gt; is also clonable (which is not a requirement for us).&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Clone &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;clone&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;self) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Self&lt;/span&gt; {
+        Self(Arc::clone(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;self.&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;))
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Likewise, for the principle of &lt;a href=&#34;https://rust-lang.github.io/api-guidelines/interoperability.html#types-eagerly-implement-common-traits-c-common-traits&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;eagerly implementing common traits&lt;/a&gt;
+, we are going to implement &lt;a href=&#34;https://doc.rust-lang.org/std/default/trait.Default.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Default&lt;/a&gt;
+ for &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt;, so that by default its inner value is initialized to &lt;code&gt;None&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Default &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;default&lt;/span&gt;() -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Self&lt;/span&gt; {
+        Self(Arc::new(RwLock::new(None)))
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;In order to give immutable access to the &lt;code&gt;struct&lt;/code&gt; field (and avoid declaring the field public as well as having to access it via tuple indexing), we simply need to implement the &lt;a href=&#34;https://doc.rust-lang.org/std/ops/trait.Deref.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Deref&lt;/a&gt;
+ trait. Treating our smart pointer &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; like a regular reference to its field is called &lt;a href=&#34;https://doc.rust-lang.org/book/ch15-02-deref.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;deref coercion&lt;/a&gt;
+ and can conveniently work by being implicitly applied by the compiler so that writing function and method calls doesn&amp;rsquo;t require the addition of as many explicit references and dereferences with &lt;code&gt;&amp;amp;&lt;/code&gt; and &lt;code&gt;*&lt;/code&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::ops::Deref;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Deref &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Target&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Arc&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;RwLock&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;;
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;deref&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;self) -&amp;gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;Self&lt;/span&gt;::Target {
+        &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;self.&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Finally, we are going to implement a simple constructor for &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt;, which constructs a new instance of &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; when given ownership of an instance of type &lt;code&gt;V&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;new&lt;/span&gt;(value: &lt;span style=&#34;color:#a6e22e&#34;&gt;V&lt;/span&gt;) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Self&lt;/span&gt; {
+        Self(Arc::new(RwLock::new(Some(value))))
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;All the above allows us to work with &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; by possibly exposing simple APIs:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#[derive(Debug, Clone)]&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Component&lt;/span&gt; {
+    price: &lt;span style=&#34;color:#66d9ef&#34;&gt;f64&lt;/span&gt;,
+}
+
+&lt;span style=&#34;color:#75715e&#34;&gt;// construct a new instance
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; val &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; CacheVal::new(Component { price: &lt;span style=&#34;color:#ae81ff&#34;&gt;10.0&lt;/span&gt; });
+
+&lt;span style=&#34;color:#75715e&#34;&gt;// asynchronous mutex lock to read inner value
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, val.read().await);     &lt;span style=&#34;color:#75715e&#34;&gt;// Some(Component { price: 10.0 })
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;// default value is set to None
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, CacheVal::&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Component&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;::default().read().await); &lt;span style=&#34;color:#75715e&#34;&gt;// None
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;// clone shared reference
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; val2 &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; CacheVal::clone(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;val);
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, val2.read().await);    &lt;span style=&#34;color:#75715e&#34;&gt;// Some(Component { price: 10.0 })
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;// asynchronous mutex lock to evict the value by setting it to None
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;val.write().await.take();
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, val.read().await);     &lt;span style=&#34;color:#75715e&#34;&gt;// None
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, val2.read().await);    &lt;span style=&#34;color:#75715e&#34;&gt;// None
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;the-background-task&#34;&gt;The background task&lt;/h2&gt;
+&lt;p&gt;There are two main aspects to discuss about the background task: the arguments that need to be provided (such as TTL and update interval) and the task&amp;rsquo;s actual implementation.&lt;/p&gt;
+&lt;p&gt;We can start by defining the type that will include all the arguments that we need to provide, and which can be used as the same abstraction for both the task implementation and the cache public API. Here&amp;rsquo;s the full definition:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; tokio::time::Duration;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;TaskArgs&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V, UpdateFn&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; ttl: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;,
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; update_interval: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;,
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; value: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;,
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; update_fn: &lt;span style=&#34;color:#a6e22e&#34;&gt;UpdateFn&lt;/span&gt;,
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The &lt;code&gt;ttl&lt;/code&gt; and &lt;code&gt;update_interval&lt;/code&gt; fields are self-explanatory, while &lt;code&gt;value&lt;/code&gt; is the cache value that is shared between the task and the cache itself, and will be updated by calling the &lt;code&gt;UpdateFn&lt;/code&gt; stored in the fourth field of this &lt;code&gt;struct&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;What&amp;rsquo;s missing next is the implementation of the background task; its logic is relatively simple: continue to update the cache value by calling the update function at every update interval of time until the TTL expires, at which point evict the cache value and terminate the task. Fortunately, Tokio provides us all the time primitives and features to detect when a specific (or multiple) interval of time has elapsed in an asynchronous fashion.&lt;/p&gt;
+&lt;p&gt;What follows is the implementation of an asynchronous function that internally behaves as a timer, by &lt;a href=&#34;https://docs.rs/tokio/latest/tokio/macro.select.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;selecting&lt;/a&gt;
+ which of the TTL vs update &lt;a href=&#34;https://docs.rs/tokio/latest/tokio/time/struct.Interval.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Interval&lt;/a&gt;
+ futures completes first.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::future::Future;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; tokio::time;
+
+async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;timer&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V, UpdateFn, Out&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(args: &lt;span style=&#34;color:#a6e22e&#34;&gt;TaskArgs&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V, UpdateFn&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;)
+&lt;span style=&#34;color:#66d9ef&#34;&gt;where&lt;/span&gt;
+    UpdateFn: Fn(CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Out&lt;/span&gt;,
+    Out: &lt;span style=&#34;color:#a6e22e&#34;&gt;Future&lt;/span&gt;,
+{
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; ttl_interval &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; time::interval(args.ttl);
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; update_interval &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; time::interval(args.update_interval);
+    &lt;span style=&#34;color:#75715e&#34;&gt;// the first tick completes immediately
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    tokio::join&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(ttl_interval.tick(), update_interval.tick());
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;loop&lt;/span&gt; {
+        tokio::select&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt; {
+            _ &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; ttl_interval.tick() &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; {
+                &lt;span style=&#34;color:#75715e&#34;&gt;// evict the cache value by setting it to None and terminate the task
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                args.value.write().await.take();
+                &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt;;
+            }
+            _ &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; update_interval.tick() &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; {
+                &lt;span style=&#34;color:#75715e&#34;&gt;// call the update function with a shared reference to the cache value
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;                (args.update_fn)(CacheVal::clone(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;args.value)).await;
+            }
+        };
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The trait bounds of the generic type parameter &lt;code&gt;UpdateFn&lt;/code&gt; state that it must implement a call operator &lt;a href=&#34;https://doc.rust-lang.org/std/ops/trait.Fn.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Fn&lt;/a&gt;
+ that operates over the input value of type &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; and returns a generic output type &lt;code&gt;Out&lt;/code&gt; that represents the result of an asynchronous computation, aka &lt;a href=&#34;https://doc.rust-lang.org/std/future/trait.Future.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Future&lt;/a&gt;
+.&lt;/p&gt;
+&lt;p&gt;Note how passing the whole &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; to the update function gives finer granularity over when to mutably request access to the inner value &lt;code&gt;V&lt;/code&gt; by letting the implementer of the update function decide when to lock the mutex, rather than locking prior to the call to the update function and passing a mutex guard to it.&lt;/p&gt;
+&lt;p&gt;Assuming we already have a Tokio runtime running, the &lt;code&gt;timer&lt;/code&gt; function can be used as follow:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; tokio::time::Instant;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; start &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Instant::now();
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; component &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Component { price: &lt;span style=&#34;color:#ae81ff&#34;&gt;10.0&lt;/span&gt; };
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; args &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; TaskArgs {
+    ttl: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;::from_secs(&lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;),
+    update_interval: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;::from_secs(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;),
+    value: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;::new((start, component)),
+    update_fn: &lt;span style=&#34;color:#a6e22e&#34;&gt;update_price&lt;/span&gt;,
+};
+
+async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;update_price&lt;/span&gt;(value: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;(Instant, Component)&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; value &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; value.write().await;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; (start, component) &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; value.as_mut().unwrap();
+    component.price &lt;span style=&#34;color:#f92672&#34;&gt;+=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1.0&lt;/span&gt;;
+
+    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(
+        &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Price at {}s: €{}&amp;#34;&lt;/span&gt;,
+        Instant::now().duration_since(&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;start).as_secs(),
+        component.price
+    );
+}
+
+timer(args).await;
+&lt;span style=&#34;color:#75715e&#34;&gt;// Price at 1s: €11
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// Price at 2s: €12
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// Price at 3s: €13
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// Price at 4s: €14
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// Price at 5s: €15
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;the-cache-apis&#34;&gt;The Cache APIs&lt;/h2&gt;
+&lt;p&gt;As previously described in the &lt;a href=&#34;#overview&#34;&gt;Overview&lt;/a&gt;
+, we are going to implement two main APIs for our cache: the first one to insert new values associated to a unique key, and the second one to retrieve the most recent value for that key.&lt;/p&gt;
+&lt;p&gt;Starting from the &lt;code&gt;insert&lt;/code&gt; method, the logic here is also relatively simple: we insert a new key value pair in the hash table, where the value is a cloned reference of the &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; provided as part of the &lt;code&gt;TaskArgs&amp;lt;V, UpdateFn&amp;gt;&lt;/code&gt;, and we then immediately &lt;a href=&#34;https://docs.rs/tokio/latest/tokio/task/fn.spawn.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;spawn&lt;/a&gt;
+ a new detached asynchronous task that will run the previously described &lt;code&gt;timer&lt;/code&gt; function.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::hash::Hash;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;K: Eq &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Hash, V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Cache&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;K, V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;insert&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;UpdateFn, Out&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; self, key: &lt;span style=&#34;color:#a6e22e&#34;&gt;K&lt;/span&gt;, args: &lt;span style=&#34;color:#a6e22e&#34;&gt;TaskArgs&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V, UpdateFn&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;)
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;where&lt;/span&gt;
+        V: Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Sync &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &amp;#39;static,
+        UpdateFn: Fn(CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Out&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Sync &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &amp;#39;static,
+        Out: &lt;span style=&#34;color:#a6e22e&#34;&gt;Future&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &amp;#39;static,
+    {
+        self.items.insert(key, CacheVal::clone(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;args.value));
+        tokio::spawn(timer(args));
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Since internally we are using a &lt;code&gt;HashMap&lt;/code&gt; to store keys and values, it is required that the keys &lt;code&gt;K&lt;/code&gt; implement the &lt;a href=&#34;https://doc.rust-lang.org/std/cmp/trait.Eq.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Eq&lt;/a&gt;
+ and &lt;a href=&#34;https://doc.rust-lang.org/std/hash/trait.Hash.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Hash&lt;/a&gt;
+ traits, and we are requiring this in the &lt;code&gt;impl&lt;/code&gt; block as &lt;code&gt;K: Eq + Hash&lt;/code&gt;; any other trait bounds we will see are left to each specific method implementation.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s try now to demystify the trait bounds that we specified as part of the method &lt;code&gt;where&lt;/code&gt; clause. The signature of the &lt;code&gt;insert&lt;/code&gt; method allows us to define at compile time the type of the &lt;code&gt;UpdateFn&lt;/code&gt; and of its return type &lt;code&gt;Out&lt;/code&gt;. In particular, since we&amp;rsquo;re going to use the &lt;code&gt;args&lt;/code&gt; as parameter of the &lt;code&gt;timer&lt;/code&gt; function, we start by specifying the same trait bounds that are required by the &lt;code&gt;timer&lt;/code&gt; function:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;UpdateFn: Fn(CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Out&lt;/span&gt;,
+Out: &lt;span style=&#34;color:#a6e22e&#34;&gt;Future&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;On top of these, this is what &lt;a href=&#34;https://docs.rs/tokio/latest/tokio/task/fn.spawn.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;tokio::spawn&lt;/a&gt;
+ requires:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;spawn&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(future: &lt;span style=&#34;color:#a6e22e&#34;&gt;T&lt;/span&gt;) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;JoinHandle&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T::Output&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;where&lt;/span&gt;
+    T: &lt;span style=&#34;color:#a6e22e&#34;&gt;Future&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &amp;#39;static,
+    T::Output: Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &amp;#39;static,
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Basically meaning that both the future &lt;code&gt;T&lt;/code&gt; and its output &lt;code&gt;T::Output&lt;/code&gt; must be safe to &lt;a href=&#34;https://doc.rust-lang.org/std/marker/trait.Send.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Send&lt;/a&gt;
+ to another thread (this allows the Tokio runtime to move the tasks between threads while they are suspended at an &lt;code&gt;.await&lt;/code&gt;), and also that the spawned task must not contain any references to data owned outside the task (set by specifying the &lt;code&gt;&#39;static&lt;/code&gt; lifetime).&lt;/p&gt;
+&lt;p&gt;Tasks are &lt;code&gt;Send&lt;/code&gt; when all data that is held across &lt;code&gt;.await&lt;/code&gt; calls is &lt;code&gt;Send&lt;/code&gt;; since our &lt;code&gt;TaskArgs&amp;lt;V, UpdateFn&amp;gt;&lt;/code&gt; is part of the state of the task and it is reused and persisted across &lt;code&gt;.await&lt;/code&gt; calls it must also be &lt;code&gt;Send&lt;/code&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;Out: &lt;span style=&#34;color:#a6e22e&#34;&gt;Future&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &amp;#39;static,
+UpdateFn: Fn(CacheVal&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Out&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Sync &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &amp;#39;static,
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Note how we also had to restrict the &lt;code&gt;UpdateFn&lt;/code&gt; trait bounds to implement &lt;code&gt;Sync&lt;/code&gt;. This is required because when we call the update function, we are calling it by reference &lt;code&gt;&amp;amp;UpdateFn&lt;/code&gt;, and due to what we described before about allowing Tokio to move tasks (and their state) between threads, it follows that &lt;code&gt;&amp;amp;UpdateFn&lt;/code&gt; must be &lt;code&gt;Send&lt;/code&gt;, that is, it needs to be possible to reference &lt;code&gt;UpdateFn&lt;/code&gt; from multiple threads at the same time, which is the definition of &lt;code&gt;Sync&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Finally, &lt;code&gt;V&lt;/code&gt; needs to be restricted to the following trait bounds:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;V: Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Sync &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &amp;#39;static
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;While the &lt;code&gt;Send + &#39;static&lt;/code&gt; bounds follow what we have describe above, the reason why &lt;code&gt;V&lt;/code&gt; needs to be &lt;code&gt;Sync&lt;/code&gt; is more subtle, but it comes down to the fact that in order for the future spawned by Tokio to be &lt;code&gt;Send&lt;/code&gt;, our &lt;code&gt;UpdateFn&lt;/code&gt; argument &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; also needs to be &lt;code&gt;Send&lt;/code&gt;. If we revisit the types that are part of &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt;, we&amp;rsquo;ll see that it basically corresponds to an &lt;code&gt;Arc&amp;lt;RwLock&amp;lt;Option&amp;lt;V&amp;gt;&amp;gt;&amp;gt;&lt;/code&gt; and, from the Rust standard library, we can see that:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// for Arc&amp;lt;T&amp;gt; to be Send T must be Send + Sync
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T: Sync &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Send&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Send &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Arc&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {}
+
+&lt;span style=&#34;color:#75715e&#34;&gt;// for RwLock&amp;lt;T&amp;gt; to be Send T must be Send
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T: Send&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Send &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; RwLock&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {}
+&lt;span style=&#34;color:#75715e&#34;&gt;// for RwLock&amp;lt;T&amp;gt; to be Sync T must be Send + Sync
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T: Send &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Sync&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Sync &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; RwLock&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {}
+
+&lt;span style=&#34;color:#75715e&#34;&gt;// Option&amp;lt;T&amp;gt; is Send only if T is Send (and the same applies for Sync)
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T: Send&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Send &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {}
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T: Sync&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Sync &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;T&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Therefore, for &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; to be &lt;code&gt;Send&lt;/code&gt;, &lt;code&gt;V&lt;/code&gt; needs to be &lt;code&gt;Send + Sync&lt;/code&gt;. Note how this requirement could be lifted if we instead used &lt;code&gt;Mutex&amp;lt;T&amp;gt;&lt;/code&gt; instead of &lt;code&gt;RwLock&amp;lt;T&amp;gt;&lt;/code&gt;, which only requires &lt;code&gt;impl&amp;lt;T: Send&amp;gt; Sync for Mutex&amp;lt;T&amp;gt; {}&lt;/code&gt;. This is allowed because there will never be multiple immutable references of &lt;code&gt;T&lt;/code&gt; at the same time when using a &lt;code&gt;Mutex&amp;lt;T&amp;gt;&lt;/code&gt;, as it always only allows a mutually exclusive access to the data it protects (for both read and write operations, while &lt;code&gt;RwLock&amp;lt;T&amp;gt;&lt;/code&gt; allows to have a finer control over these).&lt;/p&gt;
+&lt;p&gt;Finally, the cache &lt;code&gt;get&lt;/code&gt; method is defined as follows:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::hash::Hash;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::borrow::Borrow;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;K: Eq &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Hash, V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Cache&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;K, V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Q&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;self, key: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;Q&lt;/span&gt;) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;V&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;where&lt;/span&gt;
+        K: &lt;span style=&#34;color:#a6e22e&#34;&gt;Borrow&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Q&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;,
+        Q: &lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt;Sized &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Hash &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Eq,
+        V: Clone,
+    {
+        &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; item &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; self.items.get(key)&lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt;;
+        item.read().await.clone()
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;There are probably a few interesting points to highlight about this method:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;It accepts as a key a reference to anything (&lt;code&gt;Q&lt;/code&gt;) that can be &lt;a href=&#34;https://doc.rust-lang.org/std/borrow/trait.Borrow.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;borrowed&lt;/a&gt;
+ from an actual key &lt;code&gt;K&lt;/code&gt;, allowing us to provide as parameter to this method a different representation of the key. For example, consider the case where your keys (&lt;code&gt;K&lt;/code&gt;) were &lt;code&gt;String&lt;/code&gt;, but you can call the &lt;code&gt;get&lt;/code&gt; method using a &lt;code&gt;str&lt;/code&gt; (thus avoiding an extra heap allocation); this would now be possible thanks to the &lt;code&gt;get&lt;/code&gt; API signature and the fact that the standard library provides a &lt;code&gt;impl Borrow&amp;lt;str&amp;gt; for String&lt;/code&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;It returns a &lt;a href=&#34;https://doc.rust-lang.org/std/clone/trait.Clone.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Clone&lt;/a&gt;
+ of the value &lt;code&gt;V&lt;/code&gt;, which is wrapped in an &lt;code&gt;Option&lt;/code&gt; that will be &lt;code&gt;None&lt;/code&gt; if the key does not exist in our hash table or if the key has been evicted. It wouldn&amp;rsquo;t be possible to return a reference &lt;code&gt;&amp;amp;V&lt;/code&gt; to the value as this would effectively represent a reference to the value owned by the lock guard returned by the &lt;code&gt;RwLock::read&lt;/code&gt; method (local to the &lt;code&gt;get&lt;/code&gt; method). This is intuitively correct as otherwise the user of the cache would be able to read a reference to a value that could be changed by the background task without any synchronization mechanism. Instead, we decide to return a copy of the inner value by cloning it. Alternatively, it would be possible to return &lt;code&gt;Option&amp;lt;CacheVal&amp;lt;V&amp;gt;&amp;gt;&lt;/code&gt;, but this may have some disadvantages depending on the user requirements, such as a less convenient API (effectively this represents an &lt;code&gt;Option&lt;/code&gt; within an &lt;code&gt;Option&lt;/code&gt; that can differentiate whether the key was ever inserted in the hash table or it was inserted but then later evicted) and giving the user the possibility of changing the shared inner value itself by exploiting the internal mutability offered by &lt;code&gt;CacheVal&amp;lt;V&amp;gt;&lt;/code&gt; by calling &lt;code&gt;RwLock::write&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;If you are interested only in part of the value &lt;code&gt;V&lt;/code&gt; (imagine the case where &lt;code&gt;V&lt;/code&gt; contains additional data that can be used in the update function but is not important at the time of retrieval), avoiding the &lt;code&gt;Clone&lt;/code&gt; is also possible by, for example, implementing a map function that returns a new type &lt;code&gt;U&lt;/code&gt; (defined by the user) from &lt;code&gt;&amp;amp;V&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;pub&lt;/span&gt; async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_map&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Q, MapFn, U&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;self, key: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;Q&lt;/span&gt;, map_fn: &lt;span style=&#34;color:#a6e22e&#34;&gt;MapFn&lt;/span&gt;) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;U&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;where&lt;/span&gt;
+    K: &lt;span style=&#34;color:#a6e22e&#34;&gt;Borrow&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Q&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;,
+    Q: &lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt;Sized &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Hash &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; Eq,
+    MapFn: FnOnce(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;V) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;U&lt;/span&gt;,
+{
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; item &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; self.items.get(key)&lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt;;
+    item.read().await.as_ref().map(map_fn)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;With the above described APIs, our &lt;code&gt;Cache&lt;/code&gt; can be used as follows for example:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; tokio::time::sleep;
+
+async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;update_transistor_price&lt;/span&gt;(_: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Component&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) {}
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; cache &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Cache::default();
+
+cache.insert(
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:transistor&amp;#34;&lt;/span&gt;.to_string(),
+    TaskArgs {
+        ttl: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;::from_secs(&lt;span style=&#34;color:#ae81ff&#34;&gt;600&lt;/span&gt;),
+        update_interval: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;::from_secs(&lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;),
+        value: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;::new(Component { price: &lt;span style=&#34;color:#ae81ff&#34;&gt;10.0&lt;/span&gt; }),
+        update_fn: &lt;span style=&#34;color:#a6e22e&#34;&gt;update_transistor_price&lt;/span&gt;,
+    },
+);
+
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, cache.get(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:not-found&amp;#34;&lt;/span&gt;).await);    &lt;span style=&#34;color:#75715e&#34;&gt;// None
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; transistor &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; cache.get(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:transistor&amp;#34;&lt;/span&gt;).await.unwrap();
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{transistor:?}&amp;#34;&lt;/span&gt;); &lt;span style=&#34;color:#75715e&#34;&gt;// Component { price: 10.0 }
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; price &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; cache
+    .get_map(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:transistor&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;component&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; component.price)
+    .await
+    .unwrap();
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{price}&amp;#34;&lt;/span&gt;);        &lt;span style=&#34;color:#75715e&#34;&gt;// 10
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;error-handling&#34;&gt;Error handling&lt;/h2&gt;
+&lt;p&gt;As part of the last section, we are going to briefly talk about error handling and show how we can use the current APIs to signal that a background task raised an error (for example when querying the 3rd-party service to get the price of the electronic components). Because the background tasks run asynchronously, we can expect our error handling to follow the same pattern.&lt;/p&gt;
+&lt;p&gt;There are at least a couple of ways we could support error handling:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;On a query basis: where we are interested to know if an error occurred when we query the value associated with a given key via the &lt;code&gt;get&lt;/code&gt; API. In this use case, we could simply define our user type &lt;code&gt;V&lt;/code&gt; so that it encodes this information in the type itself.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; tokio::time::sleep;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Value&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Result&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Component, String&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;;
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; cache &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Cache::default();
+
+async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;update_transistor_price&lt;/span&gt;(value: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Value&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) {
+    async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;query_manufacturer&lt;/span&gt;() -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Value&lt;/span&gt; {
+        Err(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;404: Not Found&amp;#34;&lt;/span&gt;.into())
+    }
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; new_value &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; query_manufacturer().await;
+    &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;value.write().await &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Some(new_value);
+}
+
+cache.insert(
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:transistor&amp;#34;&lt;/span&gt;,
+    TaskArgs {
+        ttl: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;::from_secs(&lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;),
+        update_interval: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;::from_millis(&lt;span style=&#34;color:#ae81ff&#34;&gt;500&lt;/span&gt;),
+        value: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;::default(),
+        update_fn: &lt;span style=&#34;color:#a6e22e&#34;&gt;update_transistor_price&lt;/span&gt;,
+    },
+);
+
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, cache.get(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:transistor&amp;#34;&lt;/span&gt;).await);           &lt;span style=&#34;color:#75715e&#34;&gt;// None
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;sleep(Duration::from_secs(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)).await;
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, cache.get(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:transistor&amp;#34;&lt;/span&gt;).await.unwrap());  &lt;span style=&#34;color:#75715e&#34;&gt;// Err(&amp;#34;404: Not Found&amp;#34;)
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Fully asynchronously: where we are interested to know if an error occurred when it occurs and get notified when this happens. In this case, we can still exploit the possibility of defining our own type &lt;code&gt;V&lt;/code&gt; to support this feature by sending errors using the &lt;a href=&#34;https://docs.rs/tokio/latest/tokio/sync/mpsc/index.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;mpsc&lt;/a&gt;
+ implementation provided by Tokio.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; tokio::sync::mpsc::{self, UnboundedSender};
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Value&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; (UnboundedSender&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;String&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;, Component);
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; cache &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Cache::default();
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; (tx, &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; rx) &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; mpsc::unbounded_channel();
+
+async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;update_transistor_price&lt;/span&gt;(value: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Value&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) {
+    async &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;query_manufacturer&lt;/span&gt;() -&amp;gt; Result&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;f64&lt;/span&gt;, String&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+        Err(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;404: Not Found&amp;#34;&lt;/span&gt;.into())
+    }
+
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; query_manufacturer().await {
+        Ok(price) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; value &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; value.write().await;
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; (_, component) &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; value.as_mut().unwrap();
+            component.price &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; price;
+        }
+        Err(e) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; {
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; value &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; value.read().await;
+            &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; (tx, _) &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; value.as_ref().unwrap();
+            tx.send(e).unwrap();
+        }
+    };
+}
+
+cache.insert(
+    &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:transistor&amp;#34;&lt;/span&gt;,
+    TaskArgs {
+        ttl: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;::from_secs(&lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;),
+        update_interval: &lt;span style=&#34;color:#a6e22e&#34;&gt;Duration&lt;/span&gt;::from_millis(&lt;span style=&#34;color:#ae81ff&#34;&gt;500&lt;/span&gt;),
+        value: &lt;span style=&#34;color:#a6e22e&#34;&gt;CacheVal&lt;/span&gt;::new((tx, Component { price: &lt;span style=&#34;color:#ae81ff&#34;&gt;10.0&lt;/span&gt; })),
+        update_fn: &lt;span style=&#34;color:#a6e22e&#34;&gt;update_transistor_price&lt;/span&gt;,
+    },
+);
+
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; err &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; rx.recv().await.unwrap();
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{err}&amp;#34;&lt;/span&gt;);          &lt;span style=&#34;color:#75715e&#34;&gt;// 404: Not Found
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; transistor &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; cache
+    .get_map(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;:transistor&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;(_, component)&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; component.clone())
+    .await
+    .unwrap();
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{transistor:?}&amp;#34;&lt;/span&gt;); &lt;span style=&#34;color:#75715e&#34;&gt;// Component { price: 10.0 }
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
+&lt;p&gt;This is it!&lt;/p&gt;
+&lt;p&gt;If you enjoyed this article you can checkout the &lt;a href=&#34;https://github.com/gliderkite/sr-cache&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;sr-cache repository on GitHub&lt;/a&gt;
+ that contains a Rust project will all the code that was presented above.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Learn Rust With Benford&#39;s Law</title>
@@ -29,7 +462,7 @@ and that&amp;rsquo;s when I decided to actually verify it.&lt;/p&gt;
 are already many and well written resources &lt;a href=&#34;https://www.rust-lang.org/learn&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;out there&lt;/a&gt;
 . But, while I
 was writing the code to check the above statements, I realized how nicely this
-little project could work as a brief and practical introduction to the
+little project could work as a brief and practical introduction to the 
 language, while also showing from a different angle &lt;a href=&#34;https://stackoverflow.blog/2020/06/05/why-the-developers-who-use-rust-love-it-so-much/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;why all the hype around it&lt;/a&gt;
 , and how does it actually feel to work with it.&lt;/p&gt;
 &lt;p&gt;And this was possible thanks to the fact that Benford&amp;rsquo;s law is an observation that
@@ -102,7 +535,7 @@ you need to be able to follow this post).&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;In many naturally occurring collections of numbers, the leading digit is likely to be small.&lt;/p&gt;
 &lt;/blockquote&gt;
-&lt;p&gt;and it goes even further by giving the exact probability of each leading digit&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;
+&lt;p&gt;and it goes even further by giving the exact probability of each leading digit&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; 
 that can be computed with the following formula:&lt;/p&gt;
 &lt;p&gt;$$p(digit) = log_{10} \left( 1 + \frac{1}{digit} \right)$$&lt;/p&gt;
 &lt;p&gt;Which can be nicely plotted as:&lt;/p&gt;
@@ -120,9 +553,9 @@ Benford&amp;rsquo;s law is.&lt;/p&gt;
 &lt;p&gt;The first thing to do is to &lt;a href=&#34;https://www.rust-lang.org/tools/install&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;install Rust&lt;/a&gt;
 .&lt;/p&gt;
 &lt;p&gt;Once we have installed Rust, we can check what is the version of the compiler:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ rustc --version
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ rustc --version
 rustc 1.47.0 (18bf6b4f0 2020-10-07)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If everything went well, we didn&amp;rsquo;t just install the Rust compiler, but we can now
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;If everything went well, we didn&amp;rsquo;t just install the Rust compiler, but we can now
 also use &lt;a href=&#34;https://doc.rust-lang.org/cargo/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Cargo - The Rust package manager&lt;/a&gt;
 , which allows us to create, build,
 and run any project, as well as to download all the project&amp;rsquo;s dependencies.&lt;/p&gt;
@@ -132,19 +565,19 @@ The project there is organized in &lt;a href=&#34;https://doc.rust-lang.org/book
 , so that you can run any of
 the following chapters with (for example) the following command for the first
 chapter:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run --package chapter01
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;chapter-01---setting-up-the-project&#34;&gt;Chapter 01 - Setting up the Project&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run --package chapter01
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;chapter-01---setting-up-the-project&#34;&gt;Chapter 01 - Setting up the Project&lt;/h2&gt;
 &lt;p&gt;Let&amp;rsquo;s create a new project called &lt;code&gt;benford&lt;/code&gt;:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo new benford
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Cargo will create a new folder with the following structure:&lt;/p&gt;
-&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;benford
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo new benford
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Cargo will create a new folder with the following structure:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;benford
 ├── Cargo.toml
 ├── src
 │   ├── main.rs
 &lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The &lt;code&gt;Cargo.toml&lt;/code&gt; file, is a &lt;a href=&#34;https://en.wikipedia.org/wiki/TOML&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;TOML&lt;/a&gt;
  file, where we can specify our package
 name and version, and the project&amp;rsquo;s external dependencies (currently none):&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;package&lt;/span&gt;]
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;package&lt;/span&gt;]
 &lt;span style=&#34;color:#a6e22e&#34;&gt;name&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;benford&amp;#34;&lt;/span&gt;
 &lt;span style=&#34;color:#a6e22e&#34;&gt;version&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;0.1.0&amp;#34;&lt;/span&gt;
 &lt;span style=&#34;color:#a6e22e&#34;&gt;authors&lt;/span&gt; = [&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;gliderkite &amp;lt;gliderkite@gmail.com&amp;gt;&amp;#34;&lt;/span&gt;]
@@ -153,20 +586,20 @@ name and version, and the project&amp;rsquo;s external dependencies (currently n
 [&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;While &lt;code&gt;main.rs&lt;/code&gt; is the source code file that contains the entry point of our
 application:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
-    println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Hello, world!&amp;#34;&lt;/span&gt;);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
+    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Hello, world!&amp;#34;&lt;/span&gt;);
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Where &lt;code&gt;println!&lt;/code&gt; is just a &lt;a href=&#34;https://doc.rust-lang.org/book/ch19-06-macros.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;function-like macro&lt;/a&gt;
  that prints formatted
 strings to the standard output.&lt;/p&gt;
 &lt;p&gt;Let&amp;rsquo;s compile and run the project for the first time; we can build it with
 &lt;code&gt;cargo build&lt;/code&gt; or simply build and run with &lt;code&gt;cargo run&lt;/code&gt;&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
     Compiling benford v0.1.0
     Finished dev [unoptimized + debuginfo] target(s) in 0.15s
         Running `target/debug/benford`
 Hello, world!
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Another important command that we are going to use without mentioning throughout
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Another important command that we are going to use without mentioning throughout
 the whole post is &lt;a href=&#34;https://github.com/rust-lang/rustfmt&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;cargo fmt&lt;/code&gt;&lt;/a&gt;
 : a tool for automatically formatting Rust
 code according to style guidelines.&lt;/p&gt;
@@ -183,7 +616,7 @@ spreadsheets, so it&amp;rsquo;s easy to export into &lt;a href=&#34;https://en.w
 , and that is exactly the
 format we are going to use for our input. The content of the file (census.csv)
 looks like this:&lt;/p&gt;
-&lt;pre tabindex=&#34;0&#34;&gt;&lt;code class=&#34;language-csv&#34; data-lang=&#34;csv&#34;&gt;City,Population
+&lt;pre&gt;&lt;code class=&#34;language-csv&#34; data-lang=&#34;csv&#34;&gt;City,Population
 Agliè,2608
 Airasca,3790
 Ala di Stura,435
@@ -208,7 +641,7 @@ named &lt;a href=&#34;https://crates.io/crates/csv&#34;target=&#34;_blank&#34; r
 .&lt;/p&gt;
 &lt;p&gt;To add a dependency to our project, we just need to add the dependency name, with
 the version we chose, to our list of dependencies in the &lt;code&gt;Cargo.toml&lt;/code&gt; file:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
 &lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;1.1.3&amp;#34;&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;But how do we actually know what types and functions are provided by this library,
 and how do we use them? This is were &lt;a href=&#34;https://docs.rs/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;docs.rs - The Rust documentation host&lt;/a&gt;
@@ -224,7 +657,7 @@ documentation, we can quickly find the example we need, which shows how the
 &lt;a href=&#34;https://docs.rs/csv/1.1.3/csv/struct.Reader.html#method.from_reader&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;csv::Reader::from_reader(reader: impl Read)&lt;/code&gt;&lt;/a&gt;
 
 method creates a new CSV parser for the given &lt;code&gt;reader&lt;/code&gt;:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; csv_reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(reader);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; csv_reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(reader);
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Notice how, even though Rust is a statically typed language, we didn&amp;rsquo;t have to
 specify the type of &lt;code&gt;csv_reader&lt;/code&gt;, since most of the times the compiler will
 be able to &lt;a href=&#34;https://en.wikipedia.org/wiki/Type_inference&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;infer the type&lt;/a&gt;
@@ -244,16 +677,16 @@ where we can search and find the &lt;a href=&#34;https://doc.rust-lang.org/std/f
  we were looking for&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
 &lt;p&gt;Let&amp;rsquo;s proceed to create the CSV reader that is going to be used to read
 and iterate over the census data:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::fs;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::fs;
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; dataset &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;census.csv&amp;#34;&lt;/span&gt;;
-    println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Reading dataset from {}&amp;#34;&lt;/span&gt;, dataset);
+    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Reading dataset from {}&amp;#34;&lt;/span&gt;, dataset);
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; file &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; fs::File::open(dataset).expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Cannot read dataset&amp;#34;&lt;/span&gt;);
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and if we compile&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; the project, we get:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo build
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo build
 warning: unused variable: `reader`
  --&amp;gt; src/main.rs:6:9
   |
@@ -261,13 +694,13 @@ warning: unused variable: `reader`
   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_reader`
   |
   = note: `#[warn(unused_variables)]` on by default
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;You have now met the compiler, the reason why many Rust developers talk about pair
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;You have now met the compiler, the reason why many Rust developers talk about pair
 programming when working with Rust: its warnings and error messages are extremely
 useful (and you will most likely encounter many thanks to the &lt;a href=&#34;https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;borrow checker&lt;/a&gt;
 &lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;).&lt;/p&gt;
 &lt;p&gt;One important thing to point out at this point is the &lt;code&gt;.expect()&lt;/code&gt; method we used
 when opening the file:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; file &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; fs::File::open(dataset).expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Cannot read dataset&amp;#34;&lt;/span&gt;);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; file &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; fs::File::open(dataset).expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Cannot read dataset&amp;#34;&lt;/span&gt;);
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The truth is that many operations can fail, and in Rust there are two main ways
 to handle errors:&lt;/p&gt;
 &lt;ul&gt;
@@ -277,7 +710,7 @@ which will print an error message (optionally showing the backtrace), unwind the
 &lt;li&gt;Return the outcome of an operation with the &lt;a href=&#34;https://doc.rust-lang.org/std/result/enum.Result.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;Result&lt;/code&gt; enum&lt;/a&gt;
  that either
 contains the outcome of a successful operation in its &lt;code&gt;Ok(Type)&lt;/code&gt; variant, or
-it contains the information of the error, in its &lt;code&gt;Err(ErrorType)&lt;/code&gt; variant,
+it contains the information of the error, in its &lt;code&gt;Err(ErrorType)&lt;/code&gt; variant, 
 which can be propagated and handled when most appropriate.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;The easiest way to handle errors, especially when writing examples, is probably to
@@ -286,10 +719,10 @@ for any reason, &lt;code&gt;.expect()&lt;/code&gt; will simply call internally &
 error message and terminate the program, otherwise it will &lt;em&gt;unwrap&lt;/em&gt; the content
 of the &lt;code&gt;Result::Ok(Type)&lt;/code&gt; variant (now stored in the variable &lt;code&gt;file&lt;/code&gt;). This is
 what happens for example if the census file doesn&amp;rsquo;t exist:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
-thread &amp;#39;main&amp;#39; panicked at &amp;#39;Cannot read dataset: Os { code: 2, kind: NotFound, message: &amp;#34;No such file or directory&amp;#34; }&amp;#39;, src/main.rs:5:40
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
+thread &#39;main&#39; panicked at &#39;Cannot read dataset: Os { code: 2, kind: NotFound, message: &amp;quot;No such file or directory&amp;quot; }&#39;, src/main.rs:5:40
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We will come back to show how to handle recoverable errors with &lt;code&gt;Result&lt;/code&gt; in a
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We will come back to show how to handle recoverable errors with &lt;code&gt;Result&lt;/code&gt; in a
 following chapter.&lt;/p&gt;
 &lt;p&gt;Now that we have a CSV reader, we can use it to iterate over all the
 records/towns in the file, and extract from each record the value representing
@@ -297,19 +730,19 @@ the population.&lt;/p&gt;
 &lt;p&gt;From the &lt;code&gt;csv&lt;/code&gt; library documentation, we can see how to iterate over all the records
 by using the &lt;a href=&#34;https://docs.rs/csv/1.1.3/csv/struct.Reader.html#method.records&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;csv::Reader::records()&lt;/code&gt;&lt;/a&gt;
  method:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
 
-println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Parsing CSV records&amp;#34;&lt;/span&gt;);
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Parsing CSV records&amp;#34;&lt;/span&gt;);
 &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
     &lt;span style=&#34;color:#75715e&#34;&gt;// record is a Result that we must unwrap before parsing its content
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
-    println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, record);
+    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, record);
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;You can see how each record is actually wrapped in a
 &lt;code&gt;Result&amp;lt;csv::StringRecord, csv::Error&amp;gt;&lt;/code&gt; (since there may be records with invalid
 format in the file).
 For this reason, we need to unwrap it with &lt;code&gt;.expect()&lt;/code&gt; to get its
-&lt;code&gt;csv::StringRecord&lt;/code&gt; if the record is valid, like we&amp;rsquo;ve done before when opening
+&lt;code&gt;csv::StringRecord&lt;/code&gt; if the record is valid, like we&amp;rsquo;ve done before when opening 
 the  &lt;code&gt;File&lt;/code&gt; (or &lt;code&gt;panic!&lt;/code&gt; when it&amp;rsquo;s not valid and the &lt;code&gt;Result&lt;/code&gt; contains an &lt;code&gt;Error&lt;/code&gt;).&lt;/p&gt;
 &lt;p&gt;Notice also how the variable name &lt;code&gt;record&lt;/code&gt; after the unwrapping is the same as
 the one declared in the &lt;code&gt;for&lt;/code&gt; loop. This is possible because Rust allows
@@ -317,7 +750,7 @@ the one declared in the &lt;code&gt;for&lt;/code&gt; loop. This is possible beca
  (in this particular case the outer variable declared in
 the loop will be &lt;em&gt;shadowed&lt;/em&gt; by the inner variable declared within it).&lt;/p&gt;
 &lt;p&gt;However, the above code will not compile; let&amp;rsquo;s see why by looking at the error message:&lt;/p&gt;
-&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;error[E0596]: cannot borrow `reader` as mutable, as it is not declared as mutable
+&lt;pre&gt;&lt;code&gt;error[E0596]: cannot borrow `reader` as mutable, as it is not declared as mutable
  --&amp;gt; src/main.rs:8:18
   |
 6 |     let reader = csv::Reader::from_reader(file);
@@ -333,7 +766,7 @@ the method needed to &lt;em&gt;immutably borrow&lt;/em&gt;, we would have found 
 and by default all declared variables in Rust are &lt;em&gt;immutable&lt;/em&gt;.&lt;/p&gt;
 &lt;p&gt;As the compiler is suggesting, we simply need to declare the &lt;code&gt;reader&lt;/code&gt; variable
 mutable by adding &lt;code&gt;mut&lt;/code&gt; in front of the variable name to fix our code:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; reader &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; csv::Reader::from_reader(file);
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We can now iterate over all the towns, but what exactly are we printing when
 using the macro &lt;code&gt;println!(&amp;quot;{:?}&amp;quot;, record)&lt;/code&gt;?&lt;/p&gt;
 &lt;p&gt;This is another important feature of Rust that enables easier debugging by
@@ -341,45 +774,45 @@ automatically implementing the debug string representation of a type, when
 deriving the &lt;a href=&#34;https://doc.rust-lang.org/std/fmt/trait.Debug.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Debug trait&lt;/a&gt;
 . As a classic example, suppose you have a &lt;code&gt;Point&lt;/code&gt;
 structure with integer (32 bits) abscissa and ordinate fields:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Point&lt;/span&gt; {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Point&lt;/span&gt; {
     x: &lt;span style=&#34;color:#66d9ef&#34;&gt;i32&lt;/span&gt;,
     y: &lt;span style=&#34;color:#66d9ef&#34;&gt;i32&lt;/span&gt;,
 }
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; origin &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Point { x: &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, y: &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt; };
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If you would like to print the value of your point to the standard output, the
-only thing you need to do is to derive the &lt;code&gt;Debug&lt;/code&gt; trait with a
+only thing you need to do is to derive the &lt;code&gt;Debug&lt;/code&gt; trait with a 
 &lt;a href=&#34;https://doc.rust-lang.org/reference/procedural-macros.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;procedural derive macro&lt;/a&gt;
 , to be able to use the &lt;code&gt;{:?}&lt;/code&gt; syntax:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#[derive(Debug)]&lt;/span&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#[derive(Debug)]&lt;/span&gt;
 &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Point&lt;/span&gt; {
     x: &lt;span style=&#34;color:#66d9ef&#34;&gt;i32&lt;/span&gt;,
     y: &lt;span style=&#34;color:#66d9ef&#34;&gt;i32&lt;/span&gt;,
 }
 
-println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, origin);
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Point { x: 0, y: 0 }
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And you can also enable pretty-printing with a slightly different syntax:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:#?}&amp;#34;&lt;/span&gt;, origin);
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Point {
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?}&amp;#34;&lt;/span&gt;, origin);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Point { x: 0, y: 0 }
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And you can also enable pretty-printing with a slightly different syntax:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:#?}&amp;#34;&lt;/span&gt;, origin);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Point {
     x: 0,
     y: 0,
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Coming back to our example, we can finally start to see all the file records
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Coming back to our example, we can finally start to see all the file records
 being printed to the standard output when we run the project:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run
 Parsing CSV records
-StringRecord([&amp;#34;Agliè&amp;#34;, &amp;#34;2608&amp;#34;])
-StringRecord([&amp;#34;Airasca&amp;#34;, &amp;#34;3790&amp;#34;])
-StringRecord([&amp;#34;Ala di Stura&amp;#34;, &amp;#34;435&amp;#34;])
-StringRecord([&amp;#34;Albiano d\&amp;#39;Ivrea&amp;#34;, &amp;#34;1847&amp;#34;])
-StringRecord([&amp;#34;Alice Superiore&amp;#34;, &amp;#34;694&amp;#34;])
-StringRecord([&amp;#34;Almese&amp;#34;, &amp;#34;6173&amp;#34;])
-StringRecord([&amp;#34;Alpette&amp;#34;, &amp;#34;267&amp;#34;])
-StringRecord([&amp;#34;Alpignano&amp;#34;, &amp;#34;16817&amp;#34;])
-&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;
-&lt;/span&gt;&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&lt;/span&gt;...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;chapter-03---logging&#34;&gt;Chapter 03 - Logging&lt;/h2&gt;
+StringRecord([&amp;quot;Agliè&amp;quot;, &amp;quot;2608&amp;quot;])
+StringRecord([&amp;quot;Airasca&amp;quot;, &amp;quot;3790&amp;quot;])
+StringRecord([&amp;quot;Ala di Stura&amp;quot;, &amp;quot;435&amp;quot;])
+StringRecord([&amp;quot;Albiano d\&#39;Ivrea&amp;quot;, &amp;quot;1847&amp;quot;])
+StringRecord([&amp;quot;Alice Superiore&amp;quot;, &amp;quot;694&amp;quot;])
+StringRecord([&amp;quot;Almese&amp;quot;, &amp;quot;6173&amp;quot;])
+StringRecord([&amp;quot;Alpette&amp;quot;, &amp;quot;267&amp;quot;])
+StringRecord([&amp;quot;Alpignano&amp;quot;, &amp;quot;16817&amp;quot;])
+
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;chapter-03---logging&#34;&gt;Chapter 03 - Logging&lt;/h2&gt;
 &lt;p&gt;We ended &lt;a href=&#34;#chapter-02---reading-the-dataset&#34;&gt;the second chapter&lt;/a&gt;
  by printing
 all the cities in the census file to the standard output, and that is quite a lot
@@ -397,14 +830,14 @@ respectively in the &lt;a href=&#34;https://docs.rs/log/0.4.11/log/&#34;target=&
 there are several other implementations that you are free to try out).&lt;/p&gt;
 &lt;p&gt;As we have done for the &lt;code&gt;csv&lt;/code&gt; library, the first thing to do is to import them
 as new dependencies in our &lt;code&gt;Cargo.toml&lt;/code&gt; file:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-toml&#34; data-lang=&#34;toml&#34;&gt;[&lt;span style=&#34;color:#a6e22e&#34;&gt;dependencies&lt;/span&gt;]
 &lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;1.1.3&amp;#34;&lt;/span&gt;
 &lt;span style=&#34;color:#a6e22e&#34;&gt;env_logger&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;0.8.1&amp;#34;&lt;/span&gt;
 &lt;span style=&#34;color:#a6e22e&#34;&gt;log&lt;/span&gt; = &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;0.4.11&amp;#34;&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Using a logger is relatively simple, we just need to initialize the logger
 implementation and then use the various log APIs provided by the facade
 according to the level we need (trace, debug, info, warn, or error):&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;() {
     &lt;span style=&#34;color:#75715e&#34;&gt;// initialize the logger implementation
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    env_logger::init();
 
@@ -423,10 +856,10 @@ according to the level we need (trace, debug, info, warn, or error):&lt;/p&gt;
 &lt;code&gt;log::trace!&lt;/code&gt; macros according to the level of logging we find the most
 appropriate. And we can enable different level of logging by setting the
 environment variable &lt;code&gt;RUST_LOG&lt;/code&gt;, for example:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;info cargo run
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=info cargo run
 [2020-10-04T12:17:45Z INFO  benford] Reading dataset from census.csv
 [2020-10-04T12:17:45Z INFO  benford] Parsing CSV records
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;While setting &lt;code&gt;RUST_LOG=trace&lt;/code&gt; would also print all the file records.&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;While setting &lt;code&gt;RUST_LOG=trace&lt;/code&gt; would also print all the file records.&lt;/p&gt;
 &lt;h2 id=&#34;chapter-04---parsing-the-dataset&#34;&gt;Chapter 04 - Parsing the Dataset&lt;/h2&gt;
 &lt;p&gt;The next step involves extracting the information we need from each record (i.e.
 the population value) and building the frequency map of the leading digits.&lt;/p&gt;
@@ -436,7 +869,7 @@ the population value) and building the frequency map of the leading digits.&lt;/
 corresponds to the second column of our dataset. We can achieve this by using
 the &lt;a href=&#34;https://docs.rs/csv/1.1.3/csv/struct.StringRecord.html#method.get&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;csv::StringRecord::get()&lt;/code&gt;&lt;/a&gt;
  method:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; city &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.get(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;);
@@ -444,14 +877,14 @@ the &lt;a href=&#34;https://docs.rs/csv/1.1.3/csv/struct.StringRecord.html#metho
     log::trace&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;{:?} population: {:?}&amp;#34;&lt;/span&gt;, city, population);
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And if we run the project, we&amp;rsquo;ll see something similar to:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;trace cargo run
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[TRACE] Some(&amp;#34;Agliè&amp;#34;) population: Some(&amp;#34;2608&amp;#34;)
-[TRACE] Some(&amp;#34;Airasca&amp;#34;) population: Some(&amp;#34;3790&amp;#34;)
-&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;
-&lt;/span&gt;&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&lt;/span&gt;...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;From this output, it looks like we are not just dealing with strings; in fact, as
+[TRACE] Some(&amp;quot;Agliè&amp;quot;) population: Some(&amp;quot;2608&amp;quot;)
+[TRACE] Some(&amp;quot;Airasca&amp;quot;) population: Some(&amp;quot;3790&amp;quot;)
+
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;From this output, it looks like we are not just dealing with strings; in fact, as
 you can see, these are wrapped in a type which &lt;code&gt;Debug&lt;/code&gt; representation is, for
 example, &lt;code&gt;Some(&amp;quot;Airasca&amp;quot;)&lt;/code&gt; or &lt;code&gt;Some(&amp;quot;3790&amp;quot;)&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;You are now meeting what is, with &lt;code&gt;Result&lt;/code&gt;, possibly the most important enum in
@@ -471,7 +904,7 @@ null references or null pointers).&lt;/p&gt;
 &lt;code&gt;Some(population)&lt;/code&gt; when the CSV record contains a second column, or &lt;code&gt;None&lt;/code&gt; when
 it doesn&amp;rsquo;t (which should never happen if our input is correct). To do so, we can
 use the Rust keyword &lt;code&gt;match&lt;/code&gt;:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record.get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) {
@@ -479,14 +912,14 @@ use the Rust keyword &lt;code&gt;match&lt;/code&gt;:&lt;/p&gt;
         None &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; log::warn&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;No population value!&amp;#34;&lt;/span&gt;),
     };
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;trace cargo run
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
 [TRACE] Population: 2608
 [TRACE] Population: 3790
-&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;
-&lt;/span&gt;&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&lt;/span&gt;...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We can now finally build the frequency map, where the keys of the map will be
+
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We can now finally build the frequency map, where the keys of the map will be
 all the possible digits $[1-9]$, while the values will be the frequency these
 digits appear as the first digit of the population values.&lt;/p&gt;
 &lt;p&gt;The only choice we need to make is if we want to deal with these numbers as
@@ -503,9 +936,9 @@ Fortunately, what we need to do is not too complex: we need to get the first dig
 of the population value, that is (being the population value a string), we need
 to extract its first character.&lt;/p&gt;
 &lt;p&gt;If we try with:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; digit &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; population[&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;];
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; digit &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; population[&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;];
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We would just get the following error:&lt;/p&gt;
-&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;  --&amp;gt; src/main.rs:20:29
+&lt;pre&gt;&lt;code&gt;  --&amp;gt; src/main.rs:20:29
    |
 20 |                 let digit = population[0];
    |                             ^^^^^^^^^^^^^ string indices are ranges of `usize`
@@ -518,7 +951,7 @@ to extract its first character.&lt;/p&gt;
 with a nice explanation on why indexing strings is not possible, but also a
 couple of solutions that we can use to fix this problem. There is also a third
 option, which is semantically equivalent, and that&amp;rsquo;s what we are going to use:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// get the first character of the population (represented as string)
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// get the first character of the population (represented as string)
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; digit &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; population.chars().next();
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;a href=&#34;https://doc.rust-lang.org/std/iter/trait.Iterator.html#tymethod.next&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;If you look closely&lt;/a&gt;
 , you&amp;rsquo;ll see that &lt;code&gt;digit&lt;/code&gt; is not exactly a character, but
@@ -531,7 +964,7 @@ part of the logic into a separate function that, given an immutable reference to
 a valid record, would optionally return the first digit of the population value
 as character.&lt;/p&gt;
 &lt;p&gt;This is what a possible implementation could look like:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_first_digit&lt;/span&gt;(record: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;::StringRecord) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_first_digit&lt;/span&gt;(record: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;::StringRecord) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;char&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     log::trace&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Parsing record: {:?}&amp;#34;&lt;/span&gt;, record);
     &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record.get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) {
         Some(population) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; population.chars().next(),
@@ -547,7 +980,7 @@ utility methods we could use to make the implementation less verbose by replacin
 the pattern matching with the semantically equivalent &lt;a href=&#34;https://doc.rust-lang.org/std/option/enum.Option.html#method.and_then&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;Option::and_then&lt;/code&gt;&lt;/a&gt;
 
 combinator:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;record
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;record
     .get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
     .and_then(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;population&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; population.chars().next())
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If you are wondering about the syntax inside the &lt;code&gt;and_then&lt;/code&gt; combinator, this is
@@ -556,13 +989,13 @@ how you define &lt;a href=&#34;https://en.wikipedia.org/wiki/Closure_%28computer
 that can capture the environment. And in this case, the closure accepts a string
 as the only input (the &lt;code&gt;population&lt;/code&gt;) and returns an &lt;code&gt;Option&lt;/code&gt; that wraps a
 character.&lt;/p&gt;
-&lt;p&gt;But how do we know that the character we are returning, when the &lt;code&gt;Option&lt;/code&gt; contains
-&lt;code&gt;Some(char)&lt;/code&gt;, will actually be a valid digit between 1 and 9? If our population
-record contains invalid data, such as &lt;code&gt;abc-xyz&lt;/code&gt;, this method would return the
+&lt;p&gt;But how do we know that the character we are returning, when the &lt;code&gt;Option&lt;/code&gt; contains 
+&lt;code&gt;Some(char)&lt;/code&gt;, will actually be a valid digit between 1 and 9? If our population 
+record contains invalid data, such as &lt;code&gt;abc-xyz&lt;/code&gt;, this method would return the 
 character &lt;code&gt;a&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;To solve this issue, we can simply chain another &lt;code&gt;Option&lt;/code&gt; combinator, to filter
 only valid characters:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;record
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;record
     .get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
     .and_then(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;population&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; population.chars().next())
     .filter(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;c&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; c.is_ascii_digit() &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;c &lt;span style=&#34;color:#f92672&#34;&gt;!=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;0&amp;#39;&lt;/span&gt;)
@@ -579,7 +1012,7 @@ closure input &lt;code&gt;c&lt;/code&gt; is a reference to a character, and ther
  before being compared to another character.&lt;/p&gt;
 &lt;p&gt;Now we can match the &lt;code&gt;Option&lt;/code&gt; returned by this function in our loop, and we can
 do so by introducing an alternative but equivalent syntax to &lt;code&gt;match&lt;/code&gt;:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; Some(digit) &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; get_first_digit(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;record) {
@@ -588,16 +1021,16 @@ do so by introducing an alternative but equivalent syntax to &lt;code&gt;match&l
         log::warn&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;No valid digit found in {:?}&amp;#34;&lt;/span&gt;, record);
     }
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;trace cargo run
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=trace cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[TRACE] Parsing record: StringRecord([&amp;#34;Agliè&amp;#34;, &amp;#34;2608&amp;#34;])
-[TRACE] Found digit &amp;#39;2&amp;#39; in StringRecord([&amp;#34;Agliè&amp;#34;, &amp;#34;2608&amp;#34;])
-[TRACE] Parsing record: StringRecord([&amp;#34;Airasca&amp;#34;, &amp;#34;3790&amp;#34;])
-[TRACE] Found digit &amp;#39;3&amp;#39; in StringRecord([&amp;#34;Airasca&amp;#34;, &amp;#34;3790&amp;#34;])
-&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;
-&lt;/span&gt;&lt;span style=&#34;color:#960050;background-color:#1e0010&#34;&gt;&lt;/span&gt;...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The only missing part is to create the frequency map according to the digits
+[TRACE] Parsing record: StringRecord([&amp;quot;Agliè&amp;quot;, &amp;quot;2608&amp;quot;])
+[TRACE] Found digit &#39;2&#39; in StringRecord([&amp;quot;Agliè&amp;quot;, &amp;quot;2608&amp;quot;])
+[TRACE] Parsing record: StringRecord([&amp;quot;Airasca&amp;quot;, &amp;quot;3790&amp;quot;])
+[TRACE] Found digit &#39;3&#39; in StringRecord([&amp;quot;Airasca&amp;quot;, &amp;quot;3790&amp;quot;])
+
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The only missing part is to create the frequency map according to the digits
 found.&lt;/p&gt;
 &lt;p&gt;What we need is an associative array; for that, the obvious choice would
 be a &lt;a href=&#34;https://en.wikipedia.org/wiki/Hash_table&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;hash table&lt;/a&gt;
@@ -608,7 +1041,7 @@ find a hash table implementation in the Rust standard library under the
 parse them (i.e. as characters), while the values will be integer values that
 correspond to how many times we found that leading digit in the records.&lt;/p&gt;
 &lt;p&gt;We can now proceed and fill up the frequency map:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::collections::HashMap;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::collections::HashMap;
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; frequency &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; HashMap::new();
 
@@ -635,27 +1068,27 @@ representing how many times we already encountered it, and increment its
 value (&lt;code&gt;count&lt;/code&gt;) by 1.
 If the digit we are trying to use as key doesn&amp;rsquo;t belong yet to the frequency map,
 a new entry will be created with an initial value equal to 0.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;debug cargo run
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ RUST_LOG=debug cargo run
 [INFO] Reading dataset from census.csv
 [INFO] Parsing CSV records
-[DEBUG] Frequency: {&amp;#39;2&amp;#39;: 1395, &amp;#39;7&amp;#39;: 455, &amp;#39;4&amp;#39;: 745, &amp;#39;1&amp;#39;: 2486, &amp;#39;9&amp;#39;: 362, &amp;#39;8&amp;#39;: 449, &amp;#39;6&amp;#39;: 550, &amp;#39;3&amp;#39;: 1007, &amp;#39;5&amp;#39;: 643}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Are these values starting to look familiar?&lt;/p&gt;
+[DEBUG] Frequency: {&#39;2&#39;: 1395, &#39;7&#39;: 455, &#39;4&#39;: 745, &#39;1&#39;: 2486, &#39;9&#39;: 362, &#39;8&#39;: 449, &#39;6&#39;: 550, &#39;3&#39;: 1007, &#39;5&#39;: 643}
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Are these values starting to look familiar?&lt;/p&gt;
 &lt;h2 id=&#34;chapter-05---comparing-results&#34;&gt;Chapter 05 - Comparing Results&lt;/h2&gt;
 &lt;p&gt;We ended &lt;a href=&#34;#chapter-04---parsing-the-dataset&#34;&gt;the previous chapter&lt;/a&gt;
  with a
 frequency map of our digits that looks like this:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Frequency: {
-    &amp;#39;2&amp;#39;: 1395,
-    &amp;#39;3&amp;#39;: 1007,
-    &amp;#39;5&amp;#39;: 643,
-    &amp;#39;6&amp;#39;: 550,
-    &amp;#39;4&amp;#39;: 745,
-    &amp;#39;8&amp;#39;: 449,
-    &amp;#39;9&amp;#39;: 362,
-    &amp;#39;1&amp;#39;: 2486,
-    &amp;#39;7&amp;#39;: 455,
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Frequency: {
+    &#39;2&#39;: 1395,
+    &#39;3&#39;: 1007,
+    &#39;5&#39;: 643,
+    &#39;6&#39;: 550,
+    &#39;4&#39;: 745,
+    &#39;8&#39;: 449,
+    &#39;9&#39;: 362,
+    &#39;1&#39;: 2486,
+    &#39;7&#39;: 455,
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;But these are just the raw frequencies of the first digits; what we would like
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;But these are just the raw frequencies of the first digits; what we would like
 is instead the percentages in which these digits appear and, ideally, they would be
 sorted by digit from 1 to 9. There are many ways to achieve this; one way is
 to store our final results into a different data structure where keys are
@@ -664,8 +1097,8 @@ sorted: in Rust, you can find this data structure under the &lt;a href=&#34;http
 &lt;p&gt;The keys of the new map are always going to be all the (sorted) digits $[1-9]$ as
 characters, while the values will be floating point numbers representing the
 percentage of how often they appear.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; total: &lt;span style=&#34;color:#66d9ef&#34;&gt;usize&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency.values().sum();
-&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; percentage: &lt;span style=&#34;color:#a6e22e&#34;&gt;BTreeMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; total: &lt;span style=&#34;color:#66d9ef&#34;&gt;usize&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency.values().sum();
+&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; percentage: &lt;span style=&#34;color:#a6e22e&#34;&gt;BTreeMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;char, &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency
     .into_iter()
     .map(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;(digit, count)&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; (digit, count &lt;span style=&#34;color:#66d9ef&#34;&gt;as&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;/&lt;/span&gt; total &lt;span style=&#34;color:#66d9ef&#34;&gt;as&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;))
     .collect();
@@ -678,18 +1111,18 @@ for each of these, we keep the &lt;code&gt;digit&lt;/code&gt; as is while the va
 its respective percentage, to then finally collect all the new key-value pairs
 into the new data structure.&lt;/p&gt;
 &lt;p&gt;And, believe it or not, this is what we get:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Percentage: {
-    &amp;#39;1&amp;#39;: 0.31,
-    &amp;#39;2&amp;#39;: 0.17,
-    &amp;#39;3&amp;#39;: 0.12,
-    &amp;#39;4&amp;#39;: 0.09,
-    &amp;#39;5&amp;#39;: 0.08,
-    &amp;#39;6&amp;#39;: 0.07,
-    &amp;#39;7&amp;#39;: 0.06,
-    &amp;#39;8&amp;#39;: 0.06,
-    &amp;#39;9&amp;#39;: 0.04,
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;Percentage: {
+    &#39;1&#39;: 0.31,
+    &#39;2&#39;: 0.17,
+    &#39;3&#39;: 0.12,
+    &#39;4&#39;: 0.09,
+    &#39;5&#39;: 0.08,
+    &#39;6&#39;: 0.07,
+    &#39;7&#39;: 0.06,
+    &#39;8&#39;: 0.06,
+    &#39;9&#39;: 0.04,
 }
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Let&amp;rsquo;s compare it with the expected values (the blue bars represent the expected
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Let&amp;rsquo;s compare it with the expected values (the blue bars represent the expected
 values, while the red ones represent the results we got from the census file):&lt;/p&gt;
 &lt;p&gt;&lt;img  src=&#34;https://gliderkite.github.io/img/benford/probabilities-delta.png&#34;
         alt=&#34;delta&#34;/&gt;&lt;/p&gt;
@@ -708,7 +1141,7 @@ logic, we can try to implement a different mechanism for error handling that
 would fit better the expectations of our application.&lt;/p&gt;
 &lt;p&gt;For example, let&amp;rsquo;s consider what happens when we have managed to open the file,
 but we can&amp;rsquo;t parse a specific record:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// record is a Result that we must unwrap before parsing its content
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;// record is a Result that we must unwrap before parsing its content
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; record.expect(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record&amp;#34;&lt;/span&gt;);
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;With our current implementation, if the record is not valid, the program will
 terminate. Let&amp;rsquo;s assume instead that discarding an invalid record is a valid
@@ -718,23 +1151,23 @@ choice.&lt;/p&gt;
  before we unwrap it with &lt;code&gt;.expect()&lt;/code&gt;, this means that we can
 pattern match it with its variants to write a semantically equivalent version of
 our code:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record {
     Ok(record) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; record,
-    Err(e) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record: {:?}&amp;#34;&lt;/span&gt;, e),
+    Err(e) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Invalid record: {:?}&amp;#34;&lt;/span&gt;, e),
 };
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And if our census file contained, for example, an invalid second record such as:&lt;/p&gt;
-&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;City,Population
+&lt;pre&gt;&lt;code&gt;City,Population
 Agliè,2608,
 Airasca,3790, UNEXPECTED
 Ala di Stura,435
 
 ...
 &lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Our program would &lt;code&gt;panic!&lt;/code&gt; with the following error message:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;[INFO] Parsing CSV records
-thread &amp;#39;main&amp;#39; panicked at &amp;#39;Invalid record: Error(UnequalLengths { pos: Some(Position { byte: 16, line: 2, record: 1 }), expected_len: 2, len: 3 })&amp;#39;, src/main.rs:26:23
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;[INFO] Parsing CSV records
+thread &#39;main&#39; panicked at &#39;Invalid record: Error(UnequalLengths { pos: Some(Position { byte: 16, line: 2, record: 1 }), expected_len: 2, len: 3 })&#39;, src/main.rs:26:23
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Let&amp;rsquo;s just skip to the next record if the one we are currently at is not valid:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record {
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Let&amp;rsquo;s just skip to the next record if the one we are currently at is not valid:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; record &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; record {
     Ok(record) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; record,
     Err(e) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; {
         log::warn&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Skipping invalid record: {:?}&amp;#34;&lt;/span&gt;, e);
@@ -751,7 +1184,7 @@ type, here we can use the &lt;a href=&#34;https://doc.rust-lang.org/std/iter/tra
  method in combination
 with &lt;a href=&#34;https://doc.rust-lang.org/std/result/enum.Result.html#method.ok&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;Result::ok()&lt;/code&gt;&lt;/a&gt;
  to filter for valid records:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records().filter_map(Result::ok) {
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; record &lt;span style=&#34;color:#66d9ef&#34;&gt;in&lt;/span&gt; reader.records().filter_map(Result::ok) {
     &lt;span style=&#34;color:#75715e&#34;&gt;// parse valid record
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;}
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;chapter-07---command-line-arguments&#34;&gt;Chapter 07 - Command Line Arguments&lt;/h2&gt;
@@ -778,19 +1211,19 @@ Fortunately, we have partially seen how to do this already with the
 &lt;a href=&#34;https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.nth&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;&lt;code&gt;Iterator::nth()&lt;/code&gt; method&lt;/a&gt;
  that returns an &lt;code&gt;Option&lt;/code&gt; with &lt;code&gt;Some(Type)&lt;/code&gt; if the
 item in position &lt;em&gt;nth&lt;/em&gt; exists (otherwise returns &lt;code&gt;None&lt;/code&gt;):&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::env;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::env;
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; dataset &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; env::args().nth(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) {
     Some(path) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; path,
-    _ &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;The path of the census file must be specified&amp;#34;&lt;/span&gt;),
+    _ &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;The path of the census file must be specified&amp;#34;&lt;/span&gt;),
 };
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;As a final note, the underscore &lt;code&gt;_&lt;/code&gt; you see in the above &lt;code&gt;match&lt;/code&gt; is an identifier
 that can be used to match &lt;em&gt;anything else&lt;/em&gt; (i.e. any other possible enum variant),
 which, in the case of a &lt;code&gt;Option&lt;/code&gt; enum, is equivalent to writing &lt;code&gt;None&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;To run your new implementation, you can pass a command line argument to your binary
 via Cargo with:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run -- census.csv
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;$ cargo run -- census.csv
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;conclusions&#34;&gt;Conclusions&lt;/h2&gt;
 &lt;p&gt;We&amp;rsquo;ve covered a lot together, and obviously there would be a lot more to cover
 (for that I suggest to have a look at the &lt;a href=&#34;https://doc.rust-lang.org/book/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;Rust Book&lt;/a&gt;
 ), but in the end we&amp;rsquo;ve
@@ -798,7 +1231,7 @@ managed to complete a nice implementation to show the &lt;em&gt;weirdness&lt;/em
 in less than 50 lines of code.&lt;/p&gt;
 &lt;p&gt;I leave you with the full code, so that you can have a single place where to
 review everything we&amp;rsquo;ve seen so far.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::{
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; std::{
     collections::{BTreeMap, HashMap},
     env, fs,
 };
@@ -808,7 +1241,7 @@ review everything we&amp;rsquo;ve seen so far.&lt;/p&gt;
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; dataset &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;match&lt;/span&gt; env::args().nth(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;) {
         Some(path) &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; path,
-        _ &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;The path of the census file must be specified&amp;#34;&lt;/span&gt;),
+        _ &lt;span style=&#34;color:#f92672&#34;&gt;=&amp;gt;&lt;/span&gt; panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;The path of the census file must be specified&amp;#34;&lt;/span&gt;),
     };
 
     log::info&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Reading dataset from {}&amp;#34;&lt;/span&gt;, dataset);
@@ -830,14 +1263,14 @@ review everything we&amp;rsquo;ve seen so far.&lt;/p&gt;
     log::debug&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Frequency: {:?}&amp;#34;&lt;/span&gt;, frequency);
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; total: &lt;span style=&#34;color:#66d9ef&#34;&gt;usize&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency.values().sum();
-    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; percentage: &lt;span style=&#34;color:#a6e22e&#34;&gt;BTreeMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;, &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; percentage: &lt;span style=&#34;color:#a6e22e&#34;&gt;BTreeMap&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;char, &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; frequency
         .into_iter()
         .map(&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt;(digit, count)&lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; (digit, count &lt;span style=&#34;color:#66d9ef&#34;&gt;as&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;/&lt;/span&gt; total &lt;span style=&#34;color:#66d9ef&#34;&gt;as&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt;))
         .collect();
     log::info&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Percentage: {:#.2?}&amp;#34;&lt;/span&gt;, percentage);
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_first_digit&lt;/span&gt;(record: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;::StringRecord) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;get_first_digit&lt;/span&gt;(record: &lt;span style=&#34;color:#66d9ef&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;::StringRecord) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;char&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     log::trace&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Parsing record: {:?}&amp;#34;&lt;/span&gt;, record);
     record
         .get(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
@@ -856,7 +1289,7 @@ whole post. If you decided to use the census of your own country, you
 may have to deal with a different scheme or a different format. Try to
 modify the program when having to deal with such differences.&lt;/li&gt;
 &lt;li&gt;In &lt;a href=&#34;#chapter-03---logging&#34;&gt;Chapter 03&lt;/a&gt;
-, we used the &lt;code&gt;env_logger&lt;/code&gt; crate as our
+, we used the &lt;code&gt;env_logger&lt;/code&gt; crate as our 
 logger implementation. Try to find in &lt;a href=&#34;https://crates.io/&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;crates.io&lt;/a&gt;
  other possible
 crates that you could use to replace it.&lt;/li&gt;
@@ -885,18 +1318,18 @@ make use of any of the available alternatives?&lt;/li&gt;
 &lt;ol&gt;
 &lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;Please note that the reason why this law seems to yield such accurate results
-is, although quite interesting, out of the scope of this post.&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+is, although quite interesting, out of the scope of this post. &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;By default &lt;code&gt;cargo build&lt;/code&gt; will compile your project in Debug mode (dev
 profile), you can enable optimizations and compile it in Release with
 &lt;code&gt;cargo build --release&lt;/code&gt;. You can go even further and customize your builds with
 specific &lt;a href=&#34;https://doc.rust-lang.org/book/ch14-01-release-profiles.html&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;profile settings&lt;/a&gt;
- in your &lt;code&gt;Cargo.toml&lt;/code&gt;.&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+ in your &lt;code&gt;Cargo.toml&lt;/code&gt;. &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;If you want to know what are the traits that are implemented for a specific
-type, just look for the &lt;code&gt;Trait Implementations&lt;/code&gt; section in the type documentation.&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+type, just look for the &lt;code&gt;Trait Implementations&lt;/code&gt; section in the type documentation. &lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;When the size of your project increases, the Rust compiler starts to become
@@ -904,18 +1337,18 @@ slower and slower; if you just need to check whether your code is correct withou
 actually producing an executable you can use &lt;code&gt;cargo check&lt;/code&gt; instead of using
 &lt;code&gt;cargo build&lt;/code&gt;, or (if you want even more useful suggestions from the compiler)
 try using &lt;a href=&#34;https://github.com/rust-lang/rust-clippy&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;clippy&lt;/a&gt;
- with &lt;code&gt;cargo clippy&lt;/code&gt;.&amp;#160;&lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+ with &lt;code&gt;cargo clippy&lt;/code&gt;. &lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:5&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;The borrow checker is out of the scope of this post; for now you just need to
 know that is thanks to the borrow checker that the Rust compiler can prevent
 &lt;a href=&#34;https://en.wikipedia.org/wiki/Race_condition#Data_race&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;data races&lt;/a&gt;
  (and consequent &lt;a href=&#34;https://en.wikipedia.org/wiki/Undefined_behavior&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;undefined behavior&lt;/a&gt;
-) at &lt;strong&gt;compile time&lt;/strong&gt;.&amp;#160;&lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+) at &lt;strong&gt;compile time&lt;/strong&gt;. &lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:6&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;Dependency management is &lt;a href=&#34;https://en.wikipedia.org/wiki/Dependency_hell&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;very, very hard&lt;/a&gt;
-.&amp;#160;&lt;a href=&#34;#fnref:6&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+. &lt;a href=&#34;#fnref:6&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/section&gt;
@@ -994,7 +1427,7 @@ than linearly as the number of ants increases, showing that even the most basic
 forms of &lt;em&gt;swarm intelligence&lt;/em&gt; can give significant advantages when multiple
 organisms work together.&lt;/p&gt;
 &lt;p&gt;This is what the main loop of the simulation looks like:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; formicarium::&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; formicarium::&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;;
 
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; conf &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; game::Conf::parse(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;conf.json&amp;#34;&lt;/span&gt;)&lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt;;
 &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; context &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; game::Context::new(conf);
@@ -1003,11 +1436,11 @@ organisms work together.&lt;/p&gt;
 &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;state.is_simulation_over() {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; generation &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; state.env.nextgen()&lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt;;
     &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; generation &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; MAX_GENERATIONS_COUNT {
-        panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Timeout!&amp;#34;&lt;/span&gt;);
+        panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Timeout!&amp;#34;&lt;/span&gt;);
     }
 }
 
-println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Simulation over after {} generations&amp;#34;&lt;/span&gt;, state.env.generation());
+println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Simulation over after {} generations&amp;#34;&lt;/span&gt;, state.env.generation());
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;† If you want to know more about &lt;code&gt;semeion&lt;/code&gt;, please have a look at
 &lt;a href=&#34;https://gliderkite.github.io/posts/semeion&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;this post&lt;/a&gt;
 .&lt;/p&gt;
@@ -1037,7 +1470,7 @@ because it&amp;rsquo;s misleading and thought to possibly lead to a dead end.&lt
 can only be exchanged by leaving pheromone entities in the environment, where
 each pheromone has an intrinsic property of concentration that can be increased
 or reduced by the ants (and decreases over time to simulate evaporation).
-The stronger the pheromone concentration, the higher the chance to be in
+The stronger the pheromone concentration, the higher the chance to be in 
 proximity of a target.&lt;/p&gt;
 &lt;p&gt;When no information is available in the surrounding environment, the ant can
 still rely on a sense of direction, by knowing the approximate direction of its
@@ -1061,9 +1494,9 @@ the other ants will continue in their search for other morsels.&lt;/p&gt;
 first thing to do is to &lt;a href=&#34;https://www.rust-lang.org/tools/install&#34;target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&gt;install Rust&lt;/a&gt;
 ,
 clone the repository&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;git clone https://github.com/gliderkite/formicarium.git
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;git clone https://github.com/gliderkite/formicarium.git
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and finally run with:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;cargo run --release -- conf.json
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;cargo run --release -- conf.json
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;where the last argument is the path to the configuration file that you are free
 to edit to see how different parameters can affect the behavior of the ants.&lt;/p&gt;
 &lt;p&gt;&lt;img  src=&#34;https://gliderkite.github.io/img/formicarium/sim.gif&#34;
@@ -1073,7 +1506,7 @@ to edit to see how different parameters can affect the behavior of the ants.&lt;
 &lt;li&gt;The dimension of the environment (as the size in number of columns and rows).&lt;/li&gt;
 &lt;li&gt;The location of the nest.&lt;/li&gt;
 &lt;li&gt;The number of ants.&lt;/li&gt;
-&lt;li&gt;The ants&#39; memory span (as number of previous locations they can remember).&lt;/li&gt;
+&lt;li&gt;The ants&amp;rsquo; memory span (as number of previous locations they can remember).&lt;/li&gt;
 &lt;li&gt;The quantity of pheromone the ants can leave, expressed by the initial quantity
 that gets reset every time the ant reaches its target, and by the amount
 the pheromone left decreases at each step (the farthest from the origin
@@ -1174,7 +1607,7 @@ according to their lifetime. Only after all the entities finish their task
 &lt;p&gt;The idea is to initialize the &lt;code&gt;Environment&lt;/code&gt; with a set of entities that
 represent the initial population, to then let the engine move forward to the
 next generation until the simulation is over:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{Environment, Error, Size};
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{Environment, Error, Size};
 
 &lt;span style=&#34;color:#e6db74&#34;&gt;/// The width the environment.
 &lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;const&lt;/span&gt; WIDTH: &lt;span style=&#34;color:#66d9ef&#34;&gt;f32&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;800.0&lt;/span&gt;;
@@ -1196,11 +1629,11 @@ next generation until the simulation is over:&lt;/p&gt;
 
     &lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;is_simulation_over() {
         &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; env.nextgen()&lt;span style=&#34;color:#f92672&#34;&gt;?&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; MAX_GENERATIONS_COUNT {
-            panic!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Timeout!&amp;#34;&lt;/span&gt;);
+            panic&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Timeout!&amp;#34;&lt;/span&gt;);
         }
     }
 
-    println!(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Simulation over after {} generations&amp;#34;&lt;/span&gt;, env.generation());
+    println&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;Simulation over after {} generations&amp;#34;&lt;/span&gt;, env.generation());
     Ok(())
 }
 
@@ -1254,7 +1687,7 @@ context type.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Now that we have most of the &lt;code&gt;Entity&lt;/code&gt; information, we can start by defining a new
 entity:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity};
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity};
 
 &lt;span style=&#34;color:#e6db74&#34;&gt;/// The simulation will not draw any graphics for now.
 &lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;GraphicsContext&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; ();
@@ -1278,7 +1711,7 @@ entity:&lt;/p&gt;
     }
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Ant {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Ant {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Kind&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; EntityKind;
     &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Context&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; GraphicsContext;
 
@@ -1295,7 +1728,7 @@ entity:&lt;/p&gt;
     }
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And now we can initialize the environment with our entity:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; env &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Environment::new(dimensions);
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; env &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; Environment::new(dimensions);
 env.insert(Box::new(Ant::new(rand::random(), dimension.center())));
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The only thing to point out for now is the presence of that lifetime &lt;code&gt;&#39;a&lt;/code&gt;, which
 needs to be specified when implementing the &lt;code&gt;Entity&lt;/code&gt; trait, since it will allow
@@ -1327,7 +1760,7 @@ encode the black square as the presence of a &lt;code&gt;Cell&lt;/code&gt; in th
 square will be instead encoded by its absence (where &lt;code&gt;Cell&lt;/code&gt;s are created by
 the &lt;code&gt;Ant&lt;/code&gt; by releasing its &lt;code&gt;Offspring&lt;/code&gt; into the environment, and can be removed
 by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity, Lifespan, Location};
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity, Lifespan, Location};
 
 &lt;span style=&#34;color:#75715e&#34;&gt;#[derive(PartialEq, PartialOrd, Eq, Ord)]&lt;/span&gt;
 &lt;span style=&#34;color:#66d9ef&#34;&gt;enum&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;EntityKind&lt;/span&gt; {
@@ -1353,7 +1786,7 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
     }
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Cell {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Cell {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Kind&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; EntityKind;
     &lt;span style=&#34;color:#66d9ef&#34;&gt;type&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Context&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; GraphicsContext;
 
@@ -1380,16 +1813,16 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
 }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Now that we have defined the &lt;code&gt;Cell&lt;/code&gt; entity, we can proceed by implementing the
 &lt;code&gt;Ant&lt;/code&gt; behavior:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity, Lifespan, Location, Neighborhood, Offspring, Scope};
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-rust&#34; data-lang=&#34;rust&#34;&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;use&lt;/span&gt; semeion::{entity, Entity, Lifespan, Location, Neighborhood, Offspring, Scope};
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Ant&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Ant&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     id: &lt;span style=&#34;color:#a6e22e&#34;&gt;entity&lt;/span&gt;::Id,
     location: &lt;span style=&#34;color:#a6e22e&#34;&gt;Location&lt;/span&gt;,
     &lt;span style=&#34;color:#75715e&#34;&gt;// the Ant offspring can contain a new Black cell
-&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    offspring: &lt;span style=&#34;color:#a6e22e&#34;&gt;Offspring&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;, EntityKind, GraphicsContext&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;,
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;    offspring: &lt;span style=&#34;color:#a6e22e&#34;&gt;Offspring&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;, EntityKind, GraphicsContext&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;,
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Ant&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Ant&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;new&lt;/span&gt;(id: &lt;span style=&#34;color:#a6e22e&#34;&gt;entity&lt;/span&gt;::Id, location: &lt;span style=&#34;color:#a6e22e&#34;&gt;impl&lt;/span&gt; Into&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Location&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt;) -&amp;gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;Self&lt;/span&gt; {
         Self {
             id,
@@ -1399,7 +1832,7 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
     }
 }
 
-&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Ant&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
+&lt;span style=&#34;color:#66d9ef&#34;&gt;impl&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; Entity&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;for&lt;/span&gt; Ant&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
     &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;lifespan&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;self) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Lifespan&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; {
         &lt;span style=&#34;color:#75715e&#34;&gt;// The lifespan of the Ant is infinite.
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        Some(Lifespan::Immortal)
@@ -1428,7 +1861,7 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
         &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; Some(black_cell) &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; cell {
             &lt;span style=&#34;color:#75715e&#34;&gt;// if the cell is BLACK, we flip its color by &amp;#34;killing&amp;#34; the
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            &lt;span style=&#34;color:#75715e&#34;&gt;// entity reducing its lifespan to 0 and move left
-&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            debug_assert_eq!(black_cell.location(), self.location());
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;            debug_assert_eq&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;(black_cell.location(), self.location());
             &lt;span style=&#34;color:#66d9ef&#34;&gt;let&lt;/span&gt; lifespan &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; black_cell.lifespan_mut().unwrap();
             lifespan.clear();
 
@@ -1447,7 +1880,7 @@ by the &lt;code&gt;Ant&lt;/code&gt; according to the simulation rules):&lt;/p&gt
         Ok(())
     }
 
-    &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;offspring&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; self) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Offspring&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;a&lt;/span&gt;, Self::Kind, Self::Context&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; {
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;fn&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;offspring&lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;mut&lt;/span&gt; self) -&amp;gt; Option&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;Offspring&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;&amp;#39;a&lt;/span&gt;, Self::Kind, Self::Context&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; {
         &lt;span style=&#34;color:#75715e&#34;&gt;// release the offspring (if any) into the environment
 &lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;        Some(self.offspring.drain())
     }

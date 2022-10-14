@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.68.3" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark"><title>An asynchronous self-rehydrating cache in Rust&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.fbccb1acab1cdfa1a69b4dacd7cf183c9bdb0cf812dd8d010803c1aabe273fcf9060d58a9c009152ede2f04dc6b5a2fc.css" integrity="sha384-&#43;8yxrKsc36Gmm02s188YPJvbDPgS3Y0BCAPBqr4nP8&#43;QYNWKnACRUu3i8E3GtaL8"><meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="An asynchronous self-rehydrating cache in Rust" /><body><section id="header">
+    <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><img class="site logo" src="/img/logo.png" alt /><span class="site name">gliderkite.io</span></a></span>
+        <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/microscopy">Microscopy</a><a class="nav item" href="/about">About</a></nav></div></span></div></section><section id="content"><div class="article-container"><section class="article header">
+    <h1 class="article title">An asynchronous self-rehydrating cache in Rust</h1><p class="article date">Oct 14, 2022<span class="reading-time"> • 19 minutes to read</span></p></section><article class="article markdown-body"><h1 id="sr-cache">sr-cache</h1>
+<p>A periodic asynchronous self-rehydrating cache.</p>
+<p>The goal of this little project is to show step by step how to write a small and basic Rust implementation of a periodic self-rehydrating cache, where the user has access to two main APIs that resemble a <a href="https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html"target="_blank" rel="noopener noreferrer">HashMap</a>
+ and allow to:</p>
+<ul>
+<li>Insert a key-value pair along with:
+<ul>
+<li>Time To Live (TTL): interval of time after which the value is evicted from the cache. It effectively represents our simple cache replacement policy.</li>
+<li>Update interval: interval of time after which, if the TTL has not yet expired, to call an asynchronous function that will allow to update the value stored in the cache.</li>
+<li>The asynchronous update function.</li>
+</ul>
+</li>
+<li>Get the most recent value associated with a given key.</li>
+</ul>
+<p>This kind of caching mechanism can be useful when we need to work with data that can be retrieved concurrently and doesn&rsquo;t change very often. As an example, throughout this article we will work with a cache where we are going to store the price of electronic components, which can be retrieved by querying the web servers of 3rd party manufacturers via HTTP calls.</p>
+<h3 id="target-audience">Target Audience</h3>
+<p>I am targeting people that have read, even partially, <a href="https://doc.rust-lang.org/stable/book/"target="_blank" rel="noopener noreferrer">The Rust Book</a>
+ and are looking to dive a bit deeper into the language. At the same time, the implementation of the cache remains naive and what I write about can be considered mostly as educative content rather than an attempt to promote some sort of production ready code.</p>
+<h2 id="the-asynchronous-runtime">The asynchronous runtime</h2>
+<p>The first thing to consider is possibly how are we going to support updating the cache values asynchronously in a way that is opaque to the user, that is, being able to hide the complexity of a background task that takes care of the updates from the public APIs of the cache.</p>
+<p>For this use case, I chose <a href="https://tokio.rs/"target="_blank" rel="noopener noreferrer">Tokio</a>
+, arguably one of the most complete and best maintained asynchronous runtimes in Rust. The main features we will exploit are the ability to <a href="https://docs.rs/tokio/latest/tokio/task/fn.spawn.html"target="_blank" rel="noopener noreferrer">spawn</a>
+ asynchronous tasks (where to run the update function provided by the user of the cache) as well as the ability to keep track of <a href="https://docs.rs/tokio/latest/tokio/time/index.html"target="_blank" rel="noopener noreferrer">time</a>
+ (TTL and update interval).</p>
+<h2 id="the-cache-data-structure">The Cache data structure</h2>
+<p>As already mentioned, our cache is going to behave very similarly to a hash table; we can start by defining it as follows:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::collections::HashMap;
+
+<span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Cache</span><span style="color:#f92672">&lt;</span>K, V<span style="color:#f92672">&gt;</span> {
+    items: <span style="color:#a6e22e">HashMap</span><span style="color:#f92672">&lt;</span>K, CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;&gt;</span>,
+}
+</code></pre></div><p>From the above definition, we can see how our cache will be generic over its type parameters <code>K</code> (for the key type) and <code>V</code> (for the value type). Note how we are not storing <code>V</code> directly as value in our hash table, but instead <code>V</code> is wrapped in a new type <code>CacheVal&lt;V&gt;</code> that we are yet to define. This is because we are going to exploit the type properties of <code>CacheVal&lt;V&gt;</code> to communicate with the cache when a value <code>V</code> is updated by a background task.</p>
+<p>To understand how to make this possible, we need to think about what we want to achieve:</p>
+<ul>
+<li>
+<p>Shared ownership: The value stored in the cache should also be accessible by a background task that can change its value, and which ideally should not have access to the whole cache.</p>
+<p>Following this requirement, the default wrapper for our values <code>V</code> is <a href="https://doc.rust-lang.org/std/rc/index.html"target="_blank" rel="noopener noreferrer">Rc</a>
+, a single-threaded reference-counting pointer, which provides shared ownership of a value of type <code>V</code>. We can use reference-counting pointers to share references to the same heap allocation of the same value by, for example, passing its <a href="https://doc.rust-lang.org/std/clone/trait.Clone.html"target="_blank" rel="noopener noreferrer">Clone</a>
+ to the background task.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::rc::Rc;
+
+<span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> <span style="color:#f92672">=</span> Rc<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>; 
+</code></pre></div></li>
+<li>
+<p>Thread-safety: each value can be associated with its own lightweight and non-blocking background task, and each task can run concurrently to the other tasks. This can happen on the same thread that spawned the task, but it may also be sent to a different thread depending on the runtime configuration, which in our case will be multi-threaded.</p>
+<p>Following this requirement, we need to change <code>Rc</code> to <a href="https://doc.rust-lang.org/std/sync/struct.Arc.html"target="_blank" rel="noopener noreferrer">Arc</a>
+. Unlike <code>Rc&lt;V&gt;</code>, <code>Arc&lt;V&gt;</code> uses atomic operations for its reference counting, making it thread-safe (at the expense of the more costly atomic operations required to update the reference count).</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::sync::Arc;
+
+<span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> <span style="color:#f92672">=</span> Arc<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>; 
+</code></pre></div></li>
+<li>
+<p>(Interior) Mutability: each background task needs to be able to change the value it is in charge of updating, so that the most up to date value can be reflected by what is returned to the user when querying the cache.</p>
+<p>In Rust, shared references such as <code>Arc</code> in Rust disallow mutation by default: we cannot obtain a mutable reference to our values <code>V</code> when stored inside an <code>Arc&lt;V&gt;</code>. However, we need to be able to mutate <code>V</code> while having multiple aliases. This can be achieved using a pattern called interior mutability. A type has interior mutability if its internal state can be changed through a shared reference to it.
+To achieve this, we can make use of mutexes, and since the data <code>V</code> we are going to protect can be accessed by both the background task and the user (via the cache APIs) in a separate thread, we can avoid blocking the user thread that is trying to acquire the lock when the background task has locked it already (and vice-versa) by using an asynchronous mutex provided by Tokio, which in this scenario will yield execution back to the runtime. Moreover, since we can differentiate between read (eg: getting the value from the cache) and write (eg: setting the updated value in the background task) operations, we are going to use a <a href="https://docs.rs/tokio/latest/tokio/sync/struct.RwLock.html"target="_blank" rel="noopener noreferrer">RwLock</a>
+ asynchronous reader-writer lock.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::sync::Arc;
+<span style="color:#66d9ef">use</span> tokio::sync::RwLock;
+
+<span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> <span style="color:#f92672">=</span> Arc<span style="color:#f92672">&lt;</span>RwLock<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;&gt;</span>;
+</code></pre></div></li>
+<li>
+<p>Eviction: finally, we need to be able to encode in our type the information that will tell us if the value associated with a given cache key has been evicted, due to the expiration of the TTL, or if its value is still considered valid.</p>
+<p>We can express this requirement in the type system by allowing our values to be always either valid or evicted via one of the most common Rust tagged union types: <a href="https://doc.rust-lang.org/std/option/enum.Option.html"target="_blank" rel="noopener noreferrer">Option</a>
+. When the value is set to <code>Some</code> it will represent a valid value, otherwise it will be set and returned to the user as <code>None</code> when the TTL has expired.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::sync::Arc;
+<span style="color:#66d9ef">use</span> tokio::sync::RwLock;
+
+<span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> <span style="color:#f92672">=</span> Arc<span style="color:#f92672">&lt;</span>RwLock<span style="color:#f92672">&lt;</span>Option<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;&gt;&gt;</span>;
+</code></pre></div></li>
+</ul>
+<p>Going back to our cache, what we are missing is a way to construct an instance of it with initially no elements. To do so, we are going to manually implement the <a href="https://doc.rust-lang.org/std/default/trait.Default.html"target="_blank" rel="noopener noreferrer">Default</a>
+ trait. Note how we need to be able to call <code>Default</code> for our <code>Cache&lt;K, V&gt;</code> even if <code>V</code> is a type that does not implement <code>Default</code>, therefore simply <a href="https://doc.rust-lang.org/std/default/trait.Default.html#derivable"target="_blank" rel="noopener noreferrer">deriving Default</a>
+ would not be sufficient.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>K, V<span style="color:#f92672">&gt;</span> Default <span style="color:#66d9ef">for</span> Cache<span style="color:#f92672">&lt;</span>K, V<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">default</span>() -&gt; <span style="color:#a6e22e">Self</span> {
+        Self {
+            items: <span style="color:#a6e22e">HashMap</span>::default(),
+        }
+    }
+}
+</code></pre></div><h2 id="cacheval-behavior">CacheVal behavior</h2>
+<p>So far, we have been able to define the <code>Cache</code> data structure and, in particular, define how values are going to be stored, so that they can be accessed by both the user and the background task in charge of updating their value, by wrapping them in a new type alias <code>CacheVal&lt;V&gt;</code>. Type aliases in Rust allow us to simply define a new name for an existing type.</p>
+<p>Although <code>CacheVal&lt;V&gt;</code> is a type with basic semantics, we would still like to define its basic behavior by implementing a few traits that will become useful later on and make the API more convenient for the user of this type. For example, we could implement a constructor that takes a <code>V</code> and simply returns a <code>CacheVal&lt;V&gt;</code>, or we could implement the trait <a href="https://doc.rust-lang.org/std/fmt/trait.Debug.html"target="_blank" rel="noopener noreferrer">Debug</a>
+ for <code>CacheVal&lt;V&gt;</code> (when <code>V</code> implements <code>Debug</code>). To do this, we can start by creating a new tuple struct type with a single field.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">#[derive(Debug)]</span>
+<span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>(Arc<span style="color:#f92672">&lt;</span>RwLock<span style="color:#f92672">&lt;</span>Option<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;&gt;&gt;</span>);
+</code></pre></div><p>The first useful trait we are going to implement is <a href="https://doc.rust-lang.org/std/clone/trait.Clone.html"target="_blank" rel="noopener noreferrer">Clone</a>
+; this follows the shared ownership requirement that we discussed before, which implies we now need to be able to clone an instance of <code>CacheVal&lt;V&gt;</code>. Invoking clone on <code>CacheVal&lt;V&gt;</code> will produce a new <code>CacheVal&lt;V&gt;</code> instance, which points to the same allocation on the heap as the source <code>CacheVal&lt;V&gt;</code>, while increasing its reference count. Note how we need to be able to <code>Clone</code> our <code>CacheVal&lt;V&gt;</code> even if <code>V</code> is a type that cannot be cloned, therefore, similarly to what we have seen for the cache <code>Default</code> trait implementation, simply <a href="https://doc.rust-lang.org/std/clone/trait.Clone.html#derivable"target="_blank" rel="noopener noreferrer">deriving Clone</a>
+ would not be sufficient unless we can always guarantee that <code>V</code> is also clonable (which is not a requirement for us).</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> Clone <span style="color:#66d9ef">for</span> CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">clone</span>(<span style="color:#f92672">&amp;</span>self) -&gt; <span style="color:#a6e22e">Self</span> {
+        Self(Arc::clone(<span style="color:#f92672">&amp;</span>self.<span style="color:#ae81ff">0</span>))
+    }
+}
+</code></pre></div><p>Likewise, for the principle of <a href="https://rust-lang.github.io/api-guidelines/interoperability.html#types-eagerly-implement-common-traits-c-common-traits"target="_blank" rel="noopener noreferrer">eagerly implementing common traits</a>
+, we are going to implement <a href="https://doc.rust-lang.org/std/default/trait.Default.html"target="_blank" rel="noopener noreferrer">Default</a>
+ for <code>CacheVal&lt;V&gt;</code>, so that by default its inner value is initialized to <code>None</code>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> Default <span style="color:#66d9ef">for</span> CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">default</span>() -&gt; <span style="color:#a6e22e">Self</span> {
+        Self(Arc::new(RwLock::new(None)))
+    }
+}
+</code></pre></div><p>In order to give immutable access to the <code>struct</code> field (and avoid declaring the field public as well as having to access it via tuple indexing), we simply need to implement the <a href="https://doc.rust-lang.org/std/ops/trait.Deref.html"target="_blank" rel="noopener noreferrer">Deref</a>
+ trait. Treating our smart pointer <code>CacheVal&lt;V&gt;</code> like a regular reference to its field is called <a href="https://doc.rust-lang.org/book/ch15-02-deref.html"target="_blank" rel="noopener noreferrer">deref coercion</a>
+ and can conveniently work by being implicitly applied by the compiler so that writing function and method calls doesn&rsquo;t require the addition of as many explicit references and dereferences with <code>&amp;</code> and <code>*</code>.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::ops::Deref;
+
+<span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> Deref <span style="color:#66d9ef">for</span> CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Target</span> <span style="color:#f92672">=</span> Arc<span style="color:#f92672">&lt;</span>RwLock<span style="color:#f92672">&lt;</span>Option<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;&gt;&gt;</span>;
+
+    <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">deref</span>(<span style="color:#f92672">&amp;</span>self) -&gt; <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">Self</span>::Target {
+        <span style="color:#f92672">&amp;</span>self.<span style="color:#ae81ff">0</span>
+    }
+}
+</code></pre></div><p>Finally, we are going to implement a simple constructor for <code>CacheVal&lt;V&gt;</code>, which constructs a new instance of <code>CacheVal&lt;V&gt;</code> when given ownership of an instance of type <code>V</code>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">new</span>(value: <span style="color:#a6e22e">V</span>) -&gt; <span style="color:#a6e22e">Self</span> {
+        Self(Arc::new(RwLock::new(Some(value))))
+    }
+}
+</code></pre></div><p>All the above allows us to work with <code>CacheVal&lt;V&gt;</code> by possibly exposing simple APIs:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">#[derive(Debug, Clone)]</span>
+<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">Component</span> {
+    price: <span style="color:#66d9ef">f64</span>,
+}
+
+<span style="color:#75715e">// construct a new instance
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">let</span> val <span style="color:#f92672">=</span> CacheVal::new(Component { price: <span style="color:#ae81ff">10.0</span> });
+
+<span style="color:#75715e">// asynchronous mutex lock to read inner value
+</span><span style="color:#75715e"></span>println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, val.read().await);     <span style="color:#75715e">// Some(Component { price: 10.0 })
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">// default value is set to None
+</span><span style="color:#75715e"></span>println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, CacheVal::<span style="color:#f92672">&lt;</span>Component<span style="color:#f92672">&gt;</span>::default().read().await); <span style="color:#75715e">// None
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">// clone shared reference
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">let</span> val2 <span style="color:#f92672">=</span> CacheVal::clone(<span style="color:#f92672">&amp;</span>val);
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, val2.read().await);    <span style="color:#75715e">// Some(Component { price: 10.0 })
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">// asynchronous mutex lock to evict the value by setting it to None
+</span><span style="color:#75715e"></span>val.write().await.take();
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, val.read().await);     <span style="color:#75715e">// None
+</span><span style="color:#75715e"></span>println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, val2.read().await);    <span style="color:#75715e">// None
+</span></code></pre></div><h2 id="the-background-task">The background task</h2>
+<p>There are two main aspects to discuss about the background task: the arguments that need to be provided (such as TTL and update interval) and the task&rsquo;s actual implementation.</p>
+<p>We can start by defining the type that will include all the arguments that we need to provide, and which can be used as the same abstraction for both the task implementation and the cache public API. Here&rsquo;s the full definition:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> tokio::time::Duration;
+
+<span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">TaskArgs</span><span style="color:#f92672">&lt;</span>V, UpdateFn<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">pub</span> ttl: <span style="color:#a6e22e">Duration</span>,
+    <span style="color:#66d9ef">pub</span> update_interval: <span style="color:#a6e22e">Duration</span>,
+    <span style="color:#66d9ef">pub</span> value: <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>,
+    <span style="color:#66d9ef">pub</span> update_fn: <span style="color:#a6e22e">UpdateFn</span>,
+}
+</code></pre></div><p>The <code>ttl</code> and <code>update_interval</code> fields are self-explanatory, while <code>value</code> is the cache value that is shared between the task and the cache itself, and will be updated by calling the <code>UpdateFn</code> stored in the fourth field of this <code>struct</code>.</p>
+<p>What&rsquo;s missing next is the implementation of the background task; its logic is relatively simple: continue to update the cache value by calling the update function at every update interval of time until the TTL expires, at which point evict the cache value and terminate the task. Fortunately, Tokio provides us all the time primitives and features to detect when a specific (or multiple) interval of time has elapsed in an asynchronous fashion.</p>
+<p>What follows is the implementation of an asynchronous function that internally behaves as a timer, by <a href="https://docs.rs/tokio/latest/tokio/macro.select.html"target="_blank" rel="noopener noreferrer">selecting</a>
+ which of the TTL vs update <a href="https://docs.rs/tokio/latest/tokio/time/struct.Interval.html"target="_blank" rel="noopener noreferrer">Interval</a>
+ futures completes first.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::future::Future;
+<span style="color:#66d9ef">use</span> tokio::time;
+
+async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">timer</span><span style="color:#f92672">&lt;</span>V, UpdateFn, Out<span style="color:#f92672">&gt;</span>(args: <span style="color:#a6e22e">TaskArgs</span><span style="color:#f92672">&lt;</span>V, UpdateFn<span style="color:#f92672">&gt;</span>)
+<span style="color:#66d9ef">where</span>
+    UpdateFn: Fn(CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>) -&gt; <span style="color:#a6e22e">Out</span>,
+    Out: <span style="color:#a6e22e">Future</span>,
+{
+    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> ttl_interval <span style="color:#f92672">=</span> time::interval(args.ttl);
+    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> update_interval <span style="color:#f92672">=</span> time::interval(args.update_interval);
+    <span style="color:#75715e">// the first tick completes immediately
+</span><span style="color:#75715e"></span>    tokio::join<span style="color:#f92672">!</span>(ttl_interval.tick(), update_interval.tick());
+
+    <span style="color:#66d9ef">loop</span> {
+        tokio::select<span style="color:#f92672">!</span> {
+            _ <span style="color:#f92672">=</span> ttl_interval.tick() <span style="color:#f92672">=&gt;</span> {
+                <span style="color:#75715e">// evict the cache value by setting it to None and terminate the task
+</span><span style="color:#75715e"></span>                args.value.write().await.take();
+                <span style="color:#66d9ef">return</span>;
+            }
+            _ <span style="color:#f92672">=</span> update_interval.tick() <span style="color:#f92672">=&gt;</span> {
+                <span style="color:#75715e">// call the update function with a shared reference to the cache value
+</span><span style="color:#75715e"></span>                (args.update_fn)(CacheVal::clone(<span style="color:#f92672">&amp;</span>args.value)).await;
+            }
+        };
+    }
+}
+</code></pre></div><p>The trait bounds of the generic type parameter <code>UpdateFn</code> state that it must implement a call operator <a href="https://doc.rust-lang.org/std/ops/trait.Fn.html"target="_blank" rel="noopener noreferrer">Fn</a>
+ that operates over the input value of type <code>CacheVal&lt;V&gt;</code> and returns a generic output type <code>Out</code> that represents the result of an asynchronous computation, aka <a href="https://doc.rust-lang.org/std/future/trait.Future.html"target="_blank" rel="noopener noreferrer">Future</a>
+.</p>
+<p>Note how passing the whole <code>CacheVal&lt;V&gt;</code> to the update function gives finer granularity over when to mutably request access to the inner value <code>V</code> by letting the implementer of the update function decide when to lock the mutex, rather than locking prior to the call to the update function and passing a mutex guard to it.</p>
+<p>Assuming we already have a Tokio runtime running, the <code>timer</code> function can be used as follow:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> tokio::time::Instant;
+
+<span style="color:#66d9ef">let</span> start <span style="color:#f92672">=</span> Instant::now();
+<span style="color:#66d9ef">let</span> component <span style="color:#f92672">=</span> Component { price: <span style="color:#ae81ff">10.0</span> };
+
+<span style="color:#66d9ef">let</span> args <span style="color:#f92672">=</span> TaskArgs {
+    ttl: <span style="color:#a6e22e">Duration</span>::from_secs(<span style="color:#ae81ff">5</span>),
+    update_interval: <span style="color:#a6e22e">Duration</span>::from_secs(<span style="color:#ae81ff">1</span>),
+    value: <span style="color:#a6e22e">CacheVal</span>::new((start, component)),
+    update_fn: <span style="color:#a6e22e">update_price</span>,
+};
+
+async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">update_price</span>(value: <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>(Instant, Component)<span style="color:#f92672">&gt;</span>) {
+    <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> value <span style="color:#f92672">=</span> value.write().await;
+    <span style="color:#66d9ef">let</span> (start, component) <span style="color:#f92672">=</span> value.as_mut().unwrap();
+    component.price <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1.0</span>;
+
+    println<span style="color:#f92672">!</span>(
+        <span style="color:#e6db74">&#34;Price at {}s: €{}&#34;</span>,
+        Instant::now().duration_since(<span style="color:#f92672">*</span>start).as_secs(),
+        component.price
+    );
+}
+
+timer(args).await;
+<span style="color:#75715e">// Price at 1s: €11
+</span><span style="color:#75715e">// Price at 2s: €12
+</span><span style="color:#75715e">// Price at 3s: €13
+</span><span style="color:#75715e">// Price at 4s: €14
+</span><span style="color:#75715e">// Price at 5s: €15
+</span></code></pre></div><h2 id="the-cache-apis">The Cache APIs</h2>
+<p>As previously described in the <a href="#overview">Overview</a>
+, we are going to implement two main APIs for our cache: the first one to insert new values associated to a unique key, and the second one to retrieve the most recent value for that key.</p>
+<p>Starting from the <code>insert</code> method, the logic here is also relatively simple: we insert a new key value pair in the hash table, where the value is a cloned reference of the <code>CacheVal&lt;V&gt;</code> provided as part of the <code>TaskArgs&lt;V, UpdateFn&gt;</code>, and we then immediately <a href="https://docs.rs/tokio/latest/tokio/task/fn.spawn.html"target="_blank" rel="noopener noreferrer">spawn</a>
+ a new detached asynchronous task that will run the previously described <code>timer</code> function.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::hash::Hash;
+
+<span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>K: Eq <span style="color:#f92672">+</span> Hash, V<span style="color:#f92672">&gt;</span> Cache<span style="color:#f92672">&lt;</span>K, V<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">insert</span><span style="color:#f92672">&lt;</span>UpdateFn, Out<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span><span style="color:#66d9ef">mut</span> self, key: <span style="color:#a6e22e">K</span>, args: <span style="color:#a6e22e">TaskArgs</span><span style="color:#f92672">&lt;</span>V, UpdateFn<span style="color:#f92672">&gt;</span>)
+    <span style="color:#66d9ef">where</span>
+        V: Send <span style="color:#f92672">+</span> Sync <span style="color:#f92672">+</span> &#39;static,
+        UpdateFn: Fn(CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>) -&gt; <span style="color:#a6e22e">Out</span> <span style="color:#f92672">+</span> Send <span style="color:#f92672">+</span> Sync <span style="color:#f92672">+</span> &#39;static,
+        Out: <span style="color:#a6e22e">Future</span> <span style="color:#f92672">+</span> Send <span style="color:#f92672">+</span> &#39;static,
+    {
+        self.items.insert(key, CacheVal::clone(<span style="color:#f92672">&amp;</span>args.value));
+        tokio::spawn(timer(args));
+    }
+}
+</code></pre></div><p>Since internally we are using a <code>HashMap</code> to store keys and values, it is required that the keys <code>K</code> implement the <a href="https://doc.rust-lang.org/std/cmp/trait.Eq.html"target="_blank" rel="noopener noreferrer">Eq</a>
+ and <a href="https://doc.rust-lang.org/std/hash/trait.Hash.html"target="_blank" rel="noopener noreferrer">Hash</a>
+ traits, and we are requiring this in the <code>impl</code> block as <code>K: Eq + Hash</code>; any other trait bounds we will see are left to each specific method implementation.</p>
+<p>Let&rsquo;s try now to demystify the trait bounds that we specified as part of the method <code>where</code> clause. The signature of the <code>insert</code> method allows us to define at compile time the type of the <code>UpdateFn</code> and of its return type <code>Out</code>. In particular, since we&rsquo;re going to use the <code>args</code> as parameter of the <code>timer</code> function, we start by specifying the same trait bounds that are required by the <code>timer</code> function:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">UpdateFn: Fn(CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>) -&gt; <span style="color:#a6e22e">Out</span>,
+Out: <span style="color:#a6e22e">Future</span>
+</code></pre></div><p>On top of these, this is what <a href="https://docs.rs/tokio/latest/tokio/task/fn.spawn.html"target="_blank" rel="noopener noreferrer">tokio::spawn</a>
+ requires:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">pub</span> <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">spawn</span><span style="color:#f92672">&lt;</span>T<span style="color:#f92672">&gt;</span>(future: <span style="color:#a6e22e">T</span>) -&gt; <span style="color:#a6e22e">JoinHandle</span><span style="color:#f92672">&lt;</span>T::Output<span style="color:#f92672">&gt;</span>
+<span style="color:#66d9ef">where</span>
+    T: <span style="color:#a6e22e">Future</span> <span style="color:#f92672">+</span> Send <span style="color:#f92672">+</span> &#39;static,
+    T::Output: Send <span style="color:#f92672">+</span> &#39;static,
+</code></pre></div><p>Basically meaning that both the future <code>T</code> and its output <code>T::Output</code> must be safe to <a href="https://doc.rust-lang.org/std/marker/trait.Send.html"target="_blank" rel="noopener noreferrer">Send</a>
+ to another thread (this allows the Tokio runtime to move the tasks between threads while they are suspended at an <code>.await</code>), and also that the spawned task must not contain any references to data owned outside the task (set by specifying the <code>'static</code> lifetime).</p>
+<p>Tasks are <code>Send</code> when all data that is held across <code>.await</code> calls is <code>Send</code>; since our <code>TaskArgs&lt;V, UpdateFn&gt;</code> is part of the state of the task and it is reused and persisted across <code>.await</code> calls it must also be <code>Send</code>.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">Out: <span style="color:#a6e22e">Future</span> <span style="color:#f92672">+</span> Send <span style="color:#f92672">+</span> &#39;static,
+UpdateFn: Fn(CacheVal<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>) -&gt; <span style="color:#a6e22e">Out</span> <span style="color:#f92672">+</span> Send <span style="color:#f92672">+</span> Sync <span style="color:#f92672">+</span> &#39;static,
+</code></pre></div><p>Note how we also had to restrict the <code>UpdateFn</code> trait bounds to implement <code>Sync</code>. This is required because when we call the update function, we are calling it by reference <code>&amp;UpdateFn</code>, and due to what we described before about allowing Tokio to move tasks (and their state) between threads, it follows that <code>&amp;UpdateFn</code> must be <code>Send</code>, that is, it needs to be possible to reference <code>UpdateFn</code> from multiple threads at the same time, which is the definition of <code>Sync</code>.</p>
+<p>Finally, <code>V</code> needs to be restricted to the following trait bounds:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust">V: Send <span style="color:#f92672">+</span> Sync <span style="color:#f92672">+</span> &#39;static
+</code></pre></div><p>While the <code>Send + 'static</code> bounds follow what we have describe above, the reason why <code>V</code> needs to be <code>Sync</code> is more subtle, but it comes down to the fact that in order for the future spawned by Tokio to be <code>Send</code>, our <code>UpdateFn</code> argument <code>CacheVal&lt;V&gt;</code> also needs to be <code>Send</code>. If we revisit the types that are part of <code>CacheVal&lt;V&gt;</code>, we&rsquo;ll see that it basically corresponds to an <code>Arc&lt;RwLock&lt;Option&lt;V&gt;&gt;&gt;</code> and, from the Rust standard library, we can see that:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#75715e">// for Arc&lt;T&gt; to be Send T must be Send + Sync
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>T: Sync <span style="color:#f92672">+</span> Send<span style="color:#f92672">&gt;</span> Send <span style="color:#66d9ef">for</span> Arc<span style="color:#f92672">&lt;</span>T<span style="color:#f92672">&gt;</span> {}
+
+<span style="color:#75715e">// for RwLock&lt;T&gt; to be Send T must be Send
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>T: Send<span style="color:#f92672">&gt;</span> Send <span style="color:#66d9ef">for</span> RwLock<span style="color:#f92672">&lt;</span>T<span style="color:#f92672">&gt;</span> {}
+<span style="color:#75715e">// for RwLock&lt;T&gt; to be Sync T must be Send + Sync
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>T: Send <span style="color:#f92672">+</span> Sync<span style="color:#f92672">&gt;</span> Sync <span style="color:#66d9ef">for</span> RwLock<span style="color:#f92672">&lt;</span>T<span style="color:#f92672">&gt;</span> {}
+
+<span style="color:#75715e">// Option&lt;T&gt; is Send only if T is Send (and the same applies for Sync)
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>T: Send<span style="color:#f92672">&gt;</span> Send <span style="color:#66d9ef">for</span> Option<span style="color:#f92672">&lt;</span>T<span style="color:#f92672">&gt;</span> {}
+<span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>T: Sync<span style="color:#f92672">&gt;</span> Sync <span style="color:#66d9ef">for</span> Option<span style="color:#f92672">&lt;</span>T<span style="color:#f92672">&gt;</span> {}
+</code></pre></div><p>Therefore, for <code>CacheVal&lt;V&gt;</code> to be <code>Send</code>, <code>V</code> needs to be <code>Send + Sync</code>. Note how this requirement could be lifted if we instead used <code>Mutex&lt;T&gt;</code> instead of <code>RwLock&lt;T&gt;</code>, which only requires <code>impl&lt;T: Send&gt; Sync for Mutex&lt;T&gt; {}</code>. This is allowed because there will never be multiple immutable references of <code>T</code> at the same time when using a <code>Mutex&lt;T&gt;</code>, as it always only allows a mutually exclusive access to the data it protects (for both read and write operations, while <code>RwLock&lt;T&gt;</code> allows to have a finer control over these).</p>
+<p>Finally, the cache <code>get</code> method is defined as follows:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> std::hash::Hash;
+<span style="color:#66d9ef">use</span> std::borrow::Borrow;
+
+<span style="color:#66d9ef">impl</span><span style="color:#f92672">&lt;</span>K: Eq <span style="color:#f92672">+</span> Hash, V<span style="color:#f92672">&gt;</span> Cache<span style="color:#f92672">&lt;</span>K, V<span style="color:#f92672">&gt;</span> {
+    <span style="color:#66d9ef">pub</span> async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">get</span><span style="color:#f92672">&lt;</span>Q<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span>self, key: <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">Q</span>) -&gt; Option<span style="color:#f92672">&lt;</span>V<span style="color:#f92672">&gt;</span>
+    <span style="color:#66d9ef">where</span>
+        K: <span style="color:#a6e22e">Borrow</span><span style="color:#f92672">&lt;</span>Q<span style="color:#f92672">&gt;</span>,
+        Q: <span style="color:#f92672">?</span>Sized <span style="color:#f92672">+</span> Hash <span style="color:#f92672">+</span> Eq,
+        V: Clone,
+    {
+        <span style="color:#66d9ef">let</span> item <span style="color:#f92672">=</span> self.items.get(key)<span style="color:#f92672">?</span>;
+        item.read().await.clone()
+    }
+}
+</code></pre></div><p>There are probably a few interesting points to highlight about this method:</p>
+<ul>
+<li>
+<p>It accepts as a key a reference to anything (<code>Q</code>) that can be <a href="https://doc.rust-lang.org/std/borrow/trait.Borrow.html"target="_blank" rel="noopener noreferrer">borrowed</a>
+ from an actual key <code>K</code>, allowing us to provide as parameter to this method a different representation of the key. For example, consider the case where your keys (<code>K</code>) were <code>String</code>, but you can call the <code>get</code> method using a <code>str</code> (thus avoiding an extra heap allocation); this would now be possible thanks to the <code>get</code> API signature and the fact that the standard library provides a <code>impl Borrow&lt;str&gt; for String</code>.</p>
+</li>
+<li>
+<p>It returns a <a href="https://doc.rust-lang.org/std/clone/trait.Clone.html"target="_blank" rel="noopener noreferrer">Clone</a>
+ of the value <code>V</code>, which is wrapped in an <code>Option</code> that will be <code>None</code> if the key does not exist in our hash table or if the key has been evicted. It wouldn&rsquo;t be possible to return a reference <code>&amp;V</code> to the value as this would effectively represent a reference to the value owned by the lock guard returned by the <code>RwLock::read</code> method (local to the <code>get</code> method). This is intuitively correct as otherwise the user of the cache would be able to read a reference to a value that could be changed by the background task without any synchronization mechanism. Instead, we decide to return a copy of the inner value by cloning it. Alternatively, it would be possible to return <code>Option&lt;CacheVal&lt;V&gt;&gt;</code>, but this may have some disadvantages depending on the user requirements, such as a less convenient API (effectively this represents an <code>Option</code> within an <code>Option</code> that can differentiate whether the key was ever inserted in the hash table or it was inserted but then later evicted) and giving the user the possibility of changing the shared inner value itself by exploiting the internal mutability offered by <code>CacheVal&lt;V&gt;</code> by calling <code>RwLock::write</code>.</p>
+<p>If you are interested only in part of the value <code>V</code> (imagine the case where <code>V</code> contains additional data that can be used in the update function but is not important at the time of retrieval), avoiding the <code>Clone</code> is also possible by, for example, implementing a map function that returns a new type <code>U</code> (defined by the user) from <code>&amp;V</code>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">pub</span> async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">get_map</span><span style="color:#f92672">&lt;</span>Q, MapFn, U<span style="color:#f92672">&gt;</span>(<span style="color:#f92672">&amp;</span>self, key: <span style="color:#66d9ef">&amp;</span><span style="color:#a6e22e">Q</span>, map_fn: <span style="color:#a6e22e">MapFn</span>) -&gt; Option<span style="color:#f92672">&lt;</span>U<span style="color:#f92672">&gt;</span>
+<span style="color:#66d9ef">where</span>
+    K: <span style="color:#a6e22e">Borrow</span><span style="color:#f92672">&lt;</span>Q<span style="color:#f92672">&gt;</span>,
+    Q: <span style="color:#f92672">?</span>Sized <span style="color:#f92672">+</span> Hash <span style="color:#f92672">+</span> Eq,
+    MapFn: FnOnce(<span style="color:#f92672">&amp;</span>V) -&gt; <span style="color:#a6e22e">U</span>,
+{
+    <span style="color:#66d9ef">let</span> item <span style="color:#f92672">=</span> self.items.get(key)<span style="color:#f92672">?</span>;
+    item.read().await.as_ref().map(map_fn)
+}
+</code></pre></div></li>
+</ul>
+<p>With the above described APIs, our <code>Cache</code> can be used as follows for example:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> tokio::time::sleep;
+
+async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">update_transistor_price</span>(_: <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>Component<span style="color:#f92672">&gt;</span>) {}
+
+<span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> cache <span style="color:#f92672">=</span> Cache::default();
+
+cache.insert(
+    <span style="color:#e6db74">&#34;:transistor&#34;</span>.to_string(),
+    TaskArgs {
+        ttl: <span style="color:#a6e22e">Duration</span>::from_secs(<span style="color:#ae81ff">600</span>),
+        update_interval: <span style="color:#a6e22e">Duration</span>::from_secs(<span style="color:#ae81ff">5</span>),
+        value: <span style="color:#a6e22e">CacheVal</span>::new(Component { price: <span style="color:#ae81ff">10.0</span> }),
+        update_fn: <span style="color:#a6e22e">update_transistor_price</span>,
+    },
+);
+
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, cache.get(<span style="color:#e6db74">&#34;:not-found&#34;</span>).await);    <span style="color:#75715e">// None
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">let</span> transistor <span style="color:#f92672">=</span> cache.get(<span style="color:#e6db74">&#34;:transistor&#34;</span>).await.unwrap();
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{transistor:?}&#34;</span>); <span style="color:#75715e">// Component { price: 10.0 }
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">let</span> price <span style="color:#f92672">=</span> cache
+    .get_map(<span style="color:#e6db74">&#34;:transistor&#34;</span>, <span style="color:#f92672">|</span>component<span style="color:#f92672">|</span> component.price)
+    .await
+    .unwrap();
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{price}&#34;</span>);        <span style="color:#75715e">// 10
+</span></code></pre></div><h2 id="error-handling">Error handling</h2>
+<p>As part of the last section, we are going to briefly talk about error handling and show how we can use the current APIs to signal that a background task raised an error (for example when querying the 3rd-party service to get the price of the electronic components). Because the background tasks run asynchronously, we can expect our error handling to follow the same pattern.</p>
+<p>There are at least a couple of ways we could support error handling:</p>
+<ul>
+<li>
+<p>On a query basis: where we are interested to know if an error occurred when we query the value associated with a given key via the <code>get</code> API. In this use case, we could simply define our user type <code>V</code> so that it encodes this information in the type itself.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> tokio::time::sleep;
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Value</span> <span style="color:#f92672">=</span> Result<span style="color:#f92672">&lt;</span>Component, String<span style="color:#f92672">&gt;</span>;
+
+<span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> cache <span style="color:#f92672">=</span> Cache::default();
+
+async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">update_transistor_price</span>(value: <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>Value<span style="color:#f92672">&gt;</span>) {
+    async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">query_manufacturer</span>() -&gt; <span style="color:#a6e22e">Value</span> {
+        Err(<span style="color:#e6db74">&#34;404: Not Found&#34;</span>.into())
+    }
+
+    <span style="color:#66d9ef">let</span> new_value <span style="color:#f92672">=</span> query_manufacturer().await;
+    <span style="color:#f92672">*</span>value.write().await <span style="color:#f92672">=</span> Some(new_value);
+}
+
+cache.insert(
+    <span style="color:#e6db74">&#34;:transistor&#34;</span>,
+    TaskArgs {
+        ttl: <span style="color:#a6e22e">Duration</span>::from_secs(<span style="color:#ae81ff">5</span>),
+        update_interval: <span style="color:#a6e22e">Duration</span>::from_millis(<span style="color:#ae81ff">500</span>),
+        value: <span style="color:#a6e22e">CacheVal</span>::default(),
+        update_fn: <span style="color:#a6e22e">update_transistor_price</span>,
+    },
+);
+
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, cache.get(<span style="color:#e6db74">&#34;:transistor&#34;</span>).await);           <span style="color:#75715e">// None
+</span><span style="color:#75715e"></span>sleep(Duration::from_secs(<span style="color:#ae81ff">1</span>)).await;
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{:?}&#34;</span>, cache.get(<span style="color:#e6db74">&#34;:transistor&#34;</span>).await.unwrap());  <span style="color:#75715e">// Err(&#34;404: Not Found&#34;)
+</span></code></pre></div></li>
+<li>
+<p>Fully asynchronously: where we are interested to know if an error occurred when it occurs and get notified when this happens. In this case, we can still exploit the possibility of defining our own type <code>V</code> to support this feature by sending errors using the <a href="https://docs.rs/tokio/latest/tokio/sync/mpsc/index.html"target="_blank" rel="noopener noreferrer">mpsc</a>
+ implementation provided by Tokio.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> tokio::sync::mpsc::{self, UnboundedSender};
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">Value</span> <span style="color:#f92672">=</span> (UnboundedSender<span style="color:#f92672">&lt;</span>String<span style="color:#f92672">&gt;</span>, Component);
+
+<span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> cache <span style="color:#f92672">=</span> Cache::default();
+<span style="color:#66d9ef">let</span> (tx, <span style="color:#66d9ef">mut</span> rx) <span style="color:#f92672">=</span> mpsc::unbounded_channel();
+
+async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">update_transistor_price</span>(value: <span style="color:#a6e22e">CacheVal</span><span style="color:#f92672">&lt;</span>Value<span style="color:#f92672">&gt;</span>) {
+    async <span style="color:#66d9ef">fn</span> <span style="color:#a6e22e">query_manufacturer</span>() -&gt; Result<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">f64</span>, String<span style="color:#f92672">&gt;</span> {
+        Err(<span style="color:#e6db74">&#34;404: Not Found&#34;</span>.into())
+    }
+
+    <span style="color:#66d9ef">match</span> query_manufacturer().await {
+        Ok(price) <span style="color:#f92672">=&gt;</span> {
+            <span style="color:#66d9ef">let</span> <span style="color:#66d9ef">mut</span> value <span style="color:#f92672">=</span> value.write().await;
+            <span style="color:#66d9ef">let</span> (_, component) <span style="color:#f92672">=</span> value.as_mut().unwrap();
+            component.price <span style="color:#f92672">=</span> price;
+        }
+        Err(e) <span style="color:#f92672">=&gt;</span> {
+            <span style="color:#66d9ef">let</span> value <span style="color:#f92672">=</span> value.read().await;
+            <span style="color:#66d9ef">let</span> (tx, _) <span style="color:#f92672">=</span> value.as_ref().unwrap();
+            tx.send(e).unwrap();
+        }
+    };
+}
+
+cache.insert(
+    <span style="color:#e6db74">&#34;:transistor&#34;</span>,
+    TaskArgs {
+        ttl: <span style="color:#a6e22e">Duration</span>::from_secs(<span style="color:#ae81ff">5</span>),
+        update_interval: <span style="color:#a6e22e">Duration</span>::from_millis(<span style="color:#ae81ff">500</span>),
+        value: <span style="color:#a6e22e">CacheVal</span>::new((tx, Component { price: <span style="color:#ae81ff">10.0</span> })),
+        update_fn: <span style="color:#a6e22e">update_transistor_price</span>,
+    },
+);
+
+<span style="color:#66d9ef">let</span> err <span style="color:#f92672">=</span> rx.recv().await.unwrap();
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{err}&#34;</span>);          <span style="color:#75715e">// 404: Not Found
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">let</span> transistor <span style="color:#f92672">=</span> cache
+    .get_map(<span style="color:#e6db74">&#34;:transistor&#34;</span>, <span style="color:#f92672">|</span>(_, component)<span style="color:#f92672">|</span> component.clone())
+    .await
+    .unwrap();
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;{transistor:?}&#34;</span>); <span style="color:#75715e">// Component { price: 10.0 }
+</span></code></pre></div></li>
+</ul>
+<h2 id="conclusions">Conclusions</h2>
+<p>This is it!</p>
+<p>If you enjoyed this article you can checkout the <a href="https://github.com/gliderkite/sr-cache"target="_blank" rel="noopener noreferrer">sr-cache repository on GitHub</a>
+ that contains a Rust project will all the code that was presented above.</p>
+</article><section class="article author"><div class="details"><a class="item" href="https://github.com/gliderkite" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-github"></span>&nbsp;gliderkite</a><a class="item" href="https://twitter.com/gliderkite" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-twitter"></span>&nbsp;@gliderkite</a><a class="item" href="mailto:gliderkite@gmail.com" target="_blank" rel="noopener noreferrer"><span class="iconfont icon-email"></span>&nbsp;gliderkite@gmail.com</a></div>
+</section>
+</div>
+<div class="article bottom"><section class="article navigation"><p><a class="link" href="/posts/learn-rust-with-benford/"><span class="iconfont icon-article"></span>Learn Rust With Benford's Law</a></p></section></div></section><section id="footer"></section><script defer type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML" integrity="sha384-e/4/LvThKH1gwzXhdbY2AsjR3rm7LHWyhIG5C0jiRfn8AN2eTN5ILeztWw0H9jmN" crossorigin="anonymous"></script>
+        <script
+            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script><script src="/js/hljs.min.0799348a91dce12c6be4a73f943cfe78f181f4e6f6ec35c4af0fca1de377879f77cfab03c30f03a174d675737b5a9314.js" integrity="sha384-B5k0ipHc4Sxr5Kc/lDz&#43;ePGB9Ob27DXErw/KHeN3h593z6sDww8DoXTWdXN7WpMU"></script><script>hljs.initHighlightingOnLoad();</script></body>
+
+</html>

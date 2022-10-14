@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.92.2" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="en"><meta charset="utf-8"><meta name="generator" content="Hugo 0.68.3" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="supported-color-schemes" content="light dark"><title>Formicarium&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.05adfbdec17818142952367a754b25ac0e4ab7ab4c98e11d70e8f2ee5cd969eeb6278f829564b3a6bbf1b6d5a383aba9.css" integrity="sha384-Ba373sF4GBQpUjZ6dUslrA5Kt6tMmOEdcOjy7lzZae62J4&#43;ClWSzprvxttWjg6up"><meta name="twitter:card" content="summary" />
+<meta name="supported-color-schemes" content="light dark"><title>Formicarium&nbsp;&ndash;&nbsp;gliderkite.io</title><link rel="stylesheet" href="/css/core.min.fbccb1acab1cdfa1a69b4dacd7cf183c9bdb0cf812dd8d010803c1aabe273fcf9060d58a9c009152ede2f04dc6b5a2fc.css" integrity="sha384-&#43;8yxrKsc36Gmm02s188YPJvbDPgS3Y0BCAPBqr4nP8&#43;QYNWKnACRUu3i8E3GtaL8"><meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="Formicarium" /><body><section id="header">
     <div class="header wrap"><span class="header left-side"><a class="site home" href="/"><img class="site logo" src="/img/logo.png" alt /><span class="site name">gliderkite.io</span></a></span>
         <span class="header right-side"><div class="nav wrap"><nav class="nav"><a class="nav item" href="/microscopy">Microscopy</a><a class="nav item" href="/about">About</a></nav></div></span></div></section><section id="content"><div class="article-container"><section class="article header">
-    <h1 class="article title">Formicarium</h1><p class="article date">Oct 03, 2020<span class="lastmod"> • edited Feb 27, 2022</span><span class="reading-time"> • 9 minutes to read</span></p></section><article class="article markdown-body"><p>This article is about <a href="https://en.wikipedia.org/wiki/Swarm_intelligence"target="_blank" rel="noopener noreferrer">swarm intelligence</a>
+    <h1 class="article title">Formicarium</h1><p class="article date">Oct 03, 2020<span class="lastmod"> • edited Oct 09, 2022</span><span class="reading-time"> • 9 minutes to read</span></p></section><article class="article markdown-body"><p>This article is about <a href="https://en.wikipedia.org/wiki/Swarm_intelligence"target="_blank" rel="noopener noreferrer">swarm intelligence</a>
 ,
 and how we can try to simulate it to show how collective behavior can unlock
 better solutions to problems that may otherwise remain unsolved.</p>
@@ -71,7 +71,7 @@ than linearly as the number of ants increases, showing that even the most basic
 forms of <em>swarm intelligence</em> can give significant advantages when multiple
 organisms work together.</p>
 <p>This is what the main loop of the simulation looks like:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> formicarium::<span style="color:#f92672">*</span>;
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-rust" data-lang="rust"><span style="color:#66d9ef">use</span> formicarium::<span style="color:#f92672">*</span>;
 
 <span style="color:#66d9ef">let</span> conf <span style="color:#f92672">=</span> game::Conf::parse(<span style="color:#e6db74">&#34;conf.json&#34;</span>)<span style="color:#f92672">?</span>;
 <span style="color:#66d9ef">let</span> context <span style="color:#f92672">=</span> game::Context::new(conf);
@@ -80,11 +80,11 @@ organisms work together.</p>
 <span style="color:#66d9ef">while</span> <span style="color:#f92672">!</span>state.is_simulation_over() {
     <span style="color:#66d9ef">let</span> generation <span style="color:#f92672">=</span> state.env.nextgen()<span style="color:#f92672">?</span>;
     <span style="color:#66d9ef">if</span> generation <span style="color:#f92672">&gt;</span> MAX_GENERATIONS_COUNT {
-        panic!(<span style="color:#e6db74">&#34;Timeout!&#34;</span>);
+        panic<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Timeout!&#34;</span>);
     }
 }
 
-println!(<span style="color:#e6db74">&#34;Simulation over after {} generations&#34;</span>, state.env.generation());
+println<span style="color:#f92672">!</span>(<span style="color:#e6db74">&#34;Simulation over after {} generations&#34;</span>, state.env.generation());
 </code></pre></div><p>† If you want to know more about <code>semeion</code>, please have a look at
 <a href="https://gliderkite.github.io/posts/semeion"target="_blank" rel="noopener noreferrer">this post</a>
 .</p>
@@ -114,7 +114,7 @@ because it&rsquo;s misleading and thought to possibly lead to a dead end.</p>
 can only be exchanged by leaving pheromone entities in the environment, where
 each pheromone has an intrinsic property of concentration that can be increased
 or reduced by the ants (and decreases over time to simulate evaporation).
-The stronger the pheromone concentration, the higher the chance to be in
+The stronger the pheromone concentration, the higher the chance to be in 
 proximity of a target.</p>
 <p>When no information is available in the surrounding environment, the ant can
 still rely on a sense of direction, by knowing the approximate direction of its
@@ -138,9 +138,9 @@ the other ants will continue in their search for other morsels.</p>
 first thing to do is to <a href="https://www.rust-lang.org/tools/install"target="_blank" rel="noopener noreferrer">install Rust</a>
 ,
 clone the repository</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">git clone https://github.com/gliderkite/formicarium.git
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">git clone https://github.com/gliderkite/formicarium.git
 </code></pre></div><p>and finally run with:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">cargo run --release -- conf.json
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">cargo run --release -- conf.json
 </code></pre></div><p>where the last argument is the path to the configuration file that you are free
 to edit to see how different parameters can affect the behavior of the ants.</p>
 <p><img  src="/img/formicarium/sim.gif"
@@ -150,7 +150,7 @@ to edit to see how different parameters can affect the behavior of the ants.</p>
 <li>The dimension of the environment (as the size in number of columns and rows).</li>
 <li>The location of the nest.</li>
 <li>The number of ants.</li>
-<li>The ants' memory span (as number of previous locations they can remember).</li>
+<li>The ants&rsquo; memory span (as number of previous locations they can remember).</li>
 <li>The quantity of pheromone the ants can leave, expressed by the initial quantity
 that gets reset every time the ant reaches its target, and by the amount
 the pheromone left decreases at each step (the farthest from the origin
@@ -213,6 +213,6 @@ to the environment (that can signify we have saturated the environment).</p>
 </div>
 <div class="article bottom"><section class="article navigation"><p><a class="link" href="/posts/learn-rust-with-benford/"><span class="iconfont icon-article"></span>Learn Rust With Benford's Law</a></p><p><a class="link" href="/posts/semeion/"><span class="iconfont icon-article"></span>Semeion</a></p></section></div></section><section id="footer"></section><script defer type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML" integrity="sha384-e/4/LvThKH1gwzXhdbY2AsjR3rm7LHWyhIG5C0jiRfn8AN2eTN5ILeztWw0H9jmN" crossorigin="anonymous"></script>
         <script
-            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script><script src="/js/hljs.min.72e76ccf211868d08e31d7ca45c02501991bd760f28809c52045fa79fb7b7428664bb54ae875b46031ebc760c77b9562.js" integrity="sha384-cudszyEYaNCOMdfKRcAlAZkb12DyiAnFIEX6eft7dChmS7VK6HW0YDHrx2DHe5Vi"></script><script>hljs.initHighlightingOnLoad();</script></body>
+            type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [['$','$'], ['\\(','\\)']] } });</script><script src="/js/hljs.min.0799348a91dce12c6be4a73f943cfe78f181f4e6f6ec35c4af0fca1de377879f77cfab03c30f03a174d675737b5a9314.js" integrity="sha384-B5k0ipHc4Sxr5Kc/lDz&#43;ePGB9Ob27DXErw/KHeN3h593z6sDww8DoXTWdXN7WpMU"></script><script>hljs.initHighlightingOnLoad();</script></body>
 
 </html>
